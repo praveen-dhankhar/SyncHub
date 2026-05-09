@@ -726,7 +726,7 @@ This project is open source and available under the [ISC License](LICENSE).
 ---
 
 <p align="center">
-  Built with ❤️ by <strong>Vishesh</strong>, <strong>Ayush</strong> & <strong>Pranav</strong>
+  Built with ❤️ by <strong>Praveen Dhankhar</strong>
 </p>
 
 <p align="center">
