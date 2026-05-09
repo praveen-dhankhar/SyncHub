@@ -205,7 +205,7 @@ export function useRecording(roomId: string, username: string = "user") {
             const blob = new Blob(chunksRef.current, { type: mimeType });
 
             // Auto-download the recording
-            downloadBlob(blob, `OneStudios-${roomId.slice(0, 8)}-${Date.now()}.webm`);
+            downloadBlob(blob, `SyncHub-${roomId.slice(0, 8)}-${Date.now()}.webm`);
         };
 
         recorder.start(1000);

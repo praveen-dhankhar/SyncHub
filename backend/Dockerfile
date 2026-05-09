@@ -1,4 +1,4 @@
-# ─── OneStudios Backend ──────────────────────────────────
+# ─── SyncHub Backend ──────────────────────────────────
 # Multi-stage build for smaller final image
 # mediasoup requires native C++ compilation
 

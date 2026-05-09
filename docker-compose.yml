@@ -1,4 +1,4 @@
-# ─── OneStudios — Docker Compose ─────────────────────────
+# ─── SyncHub — Docker Compose ─────────────────────────
 # Run everything with:  docker compose up --build
 #
 # Services:
@@ -13,7 +13,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: onestudios-backend
+    container_name: synchub-backend
     ports:
       - "5000:5000"
     env_file:
@@ -29,7 +29,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - onestudios
+      - synchub
 
   # ── Frontend (Next.js) ──
   client:
@@ -38,7 +38,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:5000
-    container_name: onestudios-client
+    container_name: synchub-client
     ports:
       - "3000:3000"
     environment:
@@ -48,8 +48,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - onestudios
+      - synchub
 
 networks:
-  onestudios:
+  synchub:
     driver: bridge

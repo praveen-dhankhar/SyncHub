@@ -3,7 +3,7 @@ import "./globals.css";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "OneStudios",
+  title: "SyncHub",
   description: "for the Next gen of achievers",
 };
 

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="client/public/images/hero-dashboard.jpg" alt="OneStudios Banner" width="100%" />
+  <img src="client/public/images/hero-dashboard.jpg" alt="SyncHub Banner" width="100%" />
 </p>
 
-<h1 align="center">🎬 OneStudios</h1>
+<h1 align="center">🎬 SyncHub</h1>
 
 <p align="center">
   <strong>A full-stack, production-grade video conferencing platform built from scratch.</strong><br/>
@@ -46,9 +46,9 @@
 
 ## 🌟 Overview
 
-**OneStudios** is a full-featured, real-time video conferencing platform designed and built entirely from the ground up—no third-party SDKs like Twilio or Agora. It leverages **native WebRTC** for peer-to-peer 1:1 calls and **mediasoup SFU** for scalable group calls, all orchestrated through a custom WebSocket signaling server.
+**SyncHub** is a full-featured, real-time video conferencing platform designed and built entirely from the ground up—no third-party SDKs like Twilio or Agora. It leverages **native WebRTC** for peer-to-peer 1:1 calls and **mediasoup SFU** for scalable group calls, all orchestrated through a custom WebSocket signaling server.
 
-Unlike off-the-shelf solutions, OneStudios gives you full control over the media pipeline, enabling features like:
+Unlike off-the-shelf solutions, SyncHub gives you full control over the media pipeline, enabling features like:
 
 - 🔒 **True end-to-end encryption** via Web Crypto API (ECDH + AES-GCM)
 - 🤖 **AI-powered meeting intelligence** using Google Gemini 2.0 Flash
@@ -314,7 +314,7 @@ Peer A                    SFU Server                     Peer B
 ## 📁 Project Structure
 
 ```
-OneStudios/
+SyncHub/
 ├── client/                          # Next.js 16 Frontend
 │   ├── app/
 │   │   ├── page.tsx                 # Landing page with hero, features, CTA
@@ -400,8 +400,8 @@ OneStudios/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Vishesh-Dwivedi-Git/OneStudios.git
-cd OneStudios
+git clone https://github.com/praveen-dhankhar/SyncHub.git
+cd SyncHub
 ```
 
 ### 2. Backend Setup
@@ -500,11 +500,11 @@ docker compose up --build
 ```bash
 # Backend (includes mediasoup C++ native compilation)
 cd backend
-docker build -t onestudios-backend .
+docker build -t synchub-backend .
 
 # Frontend (multi-stage with standalone output)
 cd client
-docker build -t onestudios-client \
+docker build -t synchub-client \
   --build-arg NEXT_PUBLIC_API_URL=https://your-api.railway.app .
 ```
 
@@ -730,6 +730,5 @@ This project is open source and available under the [ISC License](LICENSE).
 </p>
 
 <p align="center">
-  <a href="#-onestudios">⬆ Back to Top</a>
+  <a href="#-synchub">⬆ Back to Top</a>
 </p>
-# SyncHub

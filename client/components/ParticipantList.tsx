@@ -94,7 +94,7 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
                 {/* Footer */}
                 <div className="p-4 border-t border-border/50">
                     <p className="text-xs text-center text-muted-foreground">
-                        End-to-end encrypted • Powered by OneStudios
+                        End-to-end encrypted • Powered by SyncHub
                     </p>
                 </div>
             </div>

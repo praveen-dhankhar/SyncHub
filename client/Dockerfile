@@ -1,4 +1,4 @@
-# ─── OneStudios Client (Next.js) ─────────────────────────
+# ─── SyncHub Client (Next.js) ─────────────────────────
 # Multi-stage build with standalone output for minimal image
 
 # ── Stage 1: Dependencies ──

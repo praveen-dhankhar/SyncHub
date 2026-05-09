@@ -20,7 +20,7 @@ const socialPlatforms = [
             </svg>
         ),
         color: "bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-[#25D366]/20",
-        getUrl: (link: string) => `https://wa.me/?text=${encodeURIComponent(`Join my OneStudios meeting: ${link}`)}`,
+        getUrl: (link: string) => `https://wa.me/?text=${encodeURIComponent(`Join my SyncHub meeting: ${link}`)}`,
     },
     {
         name: "Telegram",
@@ -30,7 +30,7 @@ const socialPlatforms = [
             </svg>
         ),
         color: "bg-[#0088cc]/10 text-[#0088cc] hover:bg-[#0088cc]/20 border-[#0088cc]/20",
-        getUrl: (link: string) => `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join my OneStudios meeting!")}`,
+        getUrl: (link: string) => `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join my SyncHub meeting!")}`,
     },
     {
         name: "Twitter",
@@ -40,7 +40,7 @@ const socialPlatforms = [
             </svg>
         ),
         color: "bg-foreground/10 text-foreground hover:bg-foreground/20 border-foreground/20",
-        getUrl: (link: string) => `https://twitter.com/intent/tweet?text=${encodeURIComponent("Join my OneStudios meeting!")}&url=${encodeURIComponent(link)}`,
+        getUrl: (link: string) => `https://twitter.com/intent/tweet?text=${encodeURIComponent("Join my SyncHub meeting!")}&url=${encodeURIComponent(link)}`,
     },
     {
         name: "LinkedIn",
@@ -61,7 +61,7 @@ const socialPlatforms = [
             </svg>
         ),
         color: "bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 border-orange-500/20",
-        getUrl: (link: string) => `mailto:?subject=${encodeURIComponent("Join my OneStudios Meeting")}&body=${encodeURIComponent(`Hey! Join my meeting on OneStudios:\n\n${link}`)}`,
+        getUrl: (link: string) => `mailto:?subject=${encodeURIComponent("Join my SyncHub Meeting")}&body=${encodeURIComponent(`Hey! Join my meeting on SyncHub:\n\n${link}`)}`,
     },
     {
         name: "SMS",
@@ -72,7 +72,7 @@ const socialPlatforms = [
             </svg>
         ),
         color: "bg-violet-500/10 text-violet-500 hover:bg-violet-500/20 border-violet-500/20",
-        getUrl: (link: string) => `sms:?body=${encodeURIComponent(`Join my OneStudios meeting: ${link}`)}`,
+        getUrl: (link: string) => `sms:?body=${encodeURIComponent(`Join my SyncHub meeting: ${link}`)}`,
     },
 ];
 

@@ -233,7 +233,7 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                         <Video className="text-primary" size={22} />
                     </div>
                     <div className="flex flex-col">
-                        <h1 className="font-bold text-base sm:text-lg leading-tight text-foreground">OneStudios Meeting</h1>
+                        <h1 className="font-bold text-base sm:text-lg leading-tight text-foreground">SyncHub Meeting</h1>
                         <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">#{roomId.slice(0, 8)}</p>
                     </div>
                 </div>

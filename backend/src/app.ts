@@ -109,7 +109,7 @@ app.get("/health", (_req, res) => {
 
 // ─── Catch-all ───────────────────────────────────────────
 app.use("/", (_req, res) => {
-  res.send("OneStudios API v1.0");
+  res.send("SyncHub API v1.0");
 });
 
 export default app;
