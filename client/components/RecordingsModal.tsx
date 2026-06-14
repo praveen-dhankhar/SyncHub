@@ -52,8 +52,8 @@ export function RecordingsModal({ isOpen, onClose, recordings }: RecordingsModal
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="mx-4 w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card/95 shadow-soft backdrop-blur-2xl animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-border">
                     <div className="flex items-center gap-3">
@@ -69,7 +69,8 @@ export function RecordingsModal({ isOpen, onClose, recordings }: RecordingsModal
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                        className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                        aria-label="Close recordings"
                     >
                         <X size={20} />
                     </button>
@@ -91,14 +92,14 @@ export function RecordingsModal({ isOpen, onClose, recordings }: RecordingsModal
                                     className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-colors group"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                                            <FileVideo size={18} className="text-red-500" />
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-live/10">
+                                            <FileVideo size={18} className="text-live" />
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-sm font-semibold text-foreground truncate">{rec.name}</p>
                                             <p className="text-[11px] text-muted-foreground">
                                                 {formatBytes(rec.size)} · {formatTimestamp(rec.receivedAt)}
-                                                {downloadedSet.has(rec.name) && <span className="text-green-500 ml-1">✓ Downloaded</span>}
+                                                {downloadedSet.has(rec.name) && <span className="ml-1 text-success">Downloaded</span>}
                                             </p>
                                         </div>
                                     </div>

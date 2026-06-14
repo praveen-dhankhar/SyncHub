@@ -9,104 +9,76 @@ export interface CallTheme {
     name: string;
     /** CSS applied to the call page background */
     bgClass: string;
-    /** text color class (e.g., text-foreground or text-white) */
-    textClass: string;
-    /** glass utility to use in header/controls */
-    glassClass: string;
-    /** Extra styles for the overlay layer */
-    overlayStyle?: React.CSSProperties;
-    /** Preview gradient for the theme picker */
-    preview: string;
+    /** CSS variable used to draw the theme preview swatch */
+    previewVar: string;
 }
 
 export const CALL_THEMES: CallTheme[] = [
     {
         id: "default",
-        name: "System / Default",
+        name: "Signal Mesh",
         bgClass: "call-theme-default",
-        textClass: "text-foreground",
-        glassClass: "glass-light",
-        preview: "linear-gradient(135deg, #ffffff, #f4f4f5)",
+        previewVar: "--call-preview-default",
     },
     {
-        id: "midnight",
-        name: "Midnight Blue",
-        bgClass: "call-theme-midnight",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #0f0c29, #302b63, #24243e)",
+        id: "focus",
+        name: "Focus Blue",
+        bgClass: "call-theme-focus",
+        previewVar: "--call-preview-focus",
     },
     {
         id: "aurora",
-        name: "Aurora Borealis",
+        name: "Aurora Sync",
         bgClass: "call-theme-aurora",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #0a0e27, #1a3a4a, #0d4a3a, #1a0e27)",
+        previewVar: "--call-preview-aurora",
     },
     {
-        id: "sunset",
-        name: "Sunset Ember",
-        bgClass: "call-theme-sunset",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #1a0000, #2d1b0e, #1a0f2e)",
+        id: "studio",
+        name: "Studio Signal",
+        bgClass: "call-theme-studio",
+        previewVar: "--call-preview-studio",
     },
     {
-        id: "ocean",
-        name: "Deep Ocean",
-        bgClass: "call-theme-ocean",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #000428, #004e92, #000428)",
-    },
-    {
-        id: "forest",
-        name: "Forest Night",
-        bgClass: "call-theme-forest",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #0a1f0a, #1a3a1a, #0a2f0a)",
-    },
-    {
-        id: "neon",
-        name: "Neon Pulse",
-        bgClass: "call-theme-neon",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #0a0015, #1a0030, #000a20)",
-    },
-    {
-        id: "minimal",
+        id: "slate",
         name: "Clean Slate",
-        bgClass: "call-theme-minimal",
-        textClass: "text-white",
-        glassClass: "glass-dark",
-        preview: "linear-gradient(135deg, #1e1e2e, #2a2a3a)",
+        bgClass: "call-theme-slate",
+        previewVar: "--call-preview-slate",
     },
     {
-        id: "concrete",
-        name: "Concrete Wall",
-        bgClass: "call-theme-concrete",
-        textClass: "text-foreground",
-        glassClass: "glass-light",
-        preview: "url('/backgrounds/concrete-wall.png')",
+        id: "cobalt",
+        name: "Cobalt Room",
+        bgClass: "call-theme-cobalt",
+        previewVar: "--call-preview-cobalt",
     },
     {
-        id: "cozy",
-        name: "Cozy Room",
-        bgClass: "call-theme-cozy",
-        textClass: "text-foreground",
-        glassClass: "glass-light",
-        preview: "url('/backgrounds/cozy-room.png')",
+        id: "calm",
+        name: "Calm Board",
+        bgClass: "call-theme-calm",
+        previewVar: "--call-preview-calm",
     },
     {
-        id: "white",
-        name: "White Wall",
-        bgClass: "call-theme-white",
-        textClass: "text-foreground",
-        glassClass: "glass-light",
-        preview: "url('/backgrounds/white-wall.png')",
+        id: "ember",
+        name: "Ember Review",
+        bgClass: "call-theme-ember",
+        previewVar: "--call-preview-ember",
+    },
+    {
+        id: "graphite",
+        name: "Graphite",
+        bgClass: "call-theme-graphite",
+        previewVar: "--call-preview-graphite",
+    },
+    {
+        id: "lumen",
+        name: "Lumen",
+        bgClass: "call-theme-lumen",
+        previewVar: "--call-preview-lumen",
+    },
+    {
+        id: "deep",
+        name: "Deep Focus",
+        bgClass: "call-theme-deep",
+        previewVar: "--call-preview-deep",
     },
 ];
 
@@ -141,7 +113,7 @@ export function CallThemeSwitcher({ currentThemeId, onSelect }: CallThemeSwitche
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isOpen ? "bg-primary/20 text-primary border border-primary/30" : "text-white/70 hover:text-white hover:bg-white/10 border border-transparent"
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-all ${isOpen ? "border-primary/40 bg-primary/15 text-primary" : "border-border bg-card/70 text-foreground hover:bg-accent"
                     }`}
                 title="Change Background Theme"
             >
@@ -152,12 +124,12 @@ export function CallThemeSwitcher({ currentThemeId, onSelect }: CallThemeSwitche
             {isOpen && (
                 <>
                     <div className="fixed inset-0 z-[60]" onClick={() => setIsOpen(false)} />
-                    <div className="absolute right-0 top-12 z-[70] w-64 bg-background/95 backdrop-blur-xl border border-border/60 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="absolute right-0 top-12 z-[70] w-72 overflow-hidden rounded-2xl border border-border bg-card/95 shadow-soft backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="flex items-center justify-between p-3 border-b border-border/40">
-                            <span className="text-sm font-semibold">Background Theme</span>
+                            <span className="text-sm font-semibold">Call atmosphere</span>
                             <button
                                 onClick={() => setIsOpen(false)}
-                                className="p-1 rounded-lg hover:bg-muted transition-colors"
+                                className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
                                 <X size={14} />
                             </button>
@@ -170,14 +142,14 @@ export function CallThemeSwitcher({ currentThemeId, onSelect }: CallThemeSwitche
                                         onSelect(theme.id);
                                         setIsOpen(false);
                                     }}
-                                    className={`relative rounded-xl overflow-hidden transition-all hover:scale-105 active:scale-95 ${currentThemeId === theme.id
+                                    className={`relative overflow-hidden rounded-xl border bg-background transition-all hover:-translate-y-0.5 active:scale-95 ${currentThemeId === theme.id
                                         ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                        : "ring-1 ring-white/10 hover:ring-white/30"
+                                        : "border-border hover:border-primary/40"
                                         }`}
                                 >
                                     <div
-                                        className="h-16 w-full bg-cover bg-center"
-                                        style={{ background: theme.preview.includes('url') ? `${theme.preview} center/cover` : theme.preview }}
+                                        className="h-16 w-full"
+                                        style={{ background: `var(${theme.previewVar})` }}
                                     />
                                     <div className="px-2 py-1.5 text-xs font-medium text-left truncate flex items-center gap-1">
                                         {currentThemeId === theme.id && (

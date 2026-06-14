@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { X, Sparkles, Copy, Check, Download, Loader2, FileText, Target, CheckCircle, Lightbulb } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TranscriptRenderer } from "@/components/TranscriptRenderer";
+import type { ClientActionItem } from "@/components/ActionItemsTab";
 
 interface MeetingSummaryModalProps {
     isOpen: boolean;
@@ -10,6 +13,7 @@ interface MeetingSummaryModalProps {
     transcript: string;
     duration: string;
     participantCount: number;
+    actionItems?: ClientActionItem[];
 }
 
 interface SummaryData {
@@ -19,7 +23,7 @@ interface SummaryData {
     decisions: string[];
 }
 
-export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, participantCount }: MeetingSummaryModalProps) {
+export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, participantCount, actionItems = [] }: MeetingSummaryModalProps) {
     const [loading, setLoading] = useState(false);
     const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
     const [copied, setCopied] = useState(false);
@@ -54,8 +58,8 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
         if (summaryData.keyPoints.length > 0) {
             md += `## Key Points\n${summaryData.keyPoints.map(p => `- ${p}`).join("\n")}\n\n`;
         }
-        if (summaryData.actionItems.length > 0) {
-            md += `## Action Items\n${summaryData.actionItems.map(a => `- [ ] ${a}`).join("\n")}\n\n`;
+        if (summaryData.actionItems.length > 0 || actionItems.length > 0) {
+            md += `## Action Items\n${formatMarkdownActionItems(actionItems, summaryData.actionItems)}\n\n`;
         }
         if (summaryData.decisions.length > 0) {
             md += `## Decisions\n${summaryData.decisions.map(d => `- ${d}`).join("\n")}\n\n`;
@@ -81,123 +85,80 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-in zoom-in-95 duration-300 max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="mx-4 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-soft backdrop-blur-2xl animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center border border-violet-500/30">
-                            <Sparkles className="text-violet-500" size={20} />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-ai/30 bg-ai/15">
+                            <Sparkles className="text-ai" size={20} />
                         </div>
                         <div>
                             <h2 className="font-bold text-lg text-foreground">AI Meeting Summary</h2>
                             <p className="text-xs text-muted-foreground">{duration} · {participantCount} participants</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+                    <button onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Close summary">
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5">
-                    {!summaryData && !loading && (
-                        <div className="flex flex-col items-center justify-center py-12 gap-4">
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                                <Sparkles size={32} className="text-violet-500" />
-                            </div>
-                            <p className="text-sm text-muted-foreground text-center max-w-xs">
-                                AI will analyze your meeting transcript and generate a structured summary with key points and action items.
-                            </p>
-                            <button
-                                onClick={generateSummary}
-                                disabled={!transcript}
-                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-30 shadow-lg"
-                            >
-                                <Sparkles size={18} />
-                                Generate Summary
-                            </button>
-                            {!transcript && (
-                                <p className="text-xs text-amber-500">No transcript available. Speak during the call to build a transcript.</p>
-                            )}
-                        </div>
-                    )}
+                    <Tabs defaultValue="summary" className="space-y-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="summary">Summary</TabsTrigger>
+                            <TabsTrigger value="actions">Action Items</TabsTrigger>
+                            <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                        </TabsList>
 
-                    {loading && (
-                        <div className="flex flex-col items-center justify-center py-16 gap-3">
-                            <div className="relative">
-                                <Loader2 size={40} className="text-violet-500 animate-spin" />
-                                <Sparkles size={16} className="text-purple-400 absolute -top-1 -right-1 animate-pulse" />
-                            </div>
-                            <p className="text-sm font-medium text-foreground">Analyzing your meeting...</p>
-                            <p className="text-xs text-muted-foreground">This takes a few seconds</p>
-                        </div>
-                    )}
-
-                    {summaryData && !loading && (
-                        <div className="space-y-5">
-                            {/* Summary */}
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                    <FileText size={14} /> Overview
-                                </div>
-                                <p className="text-sm text-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border">
-                                    {summaryData.summary}
-                                </p>
-                            </div>
-
-                            {/* Key Points */}
-                            {summaryData.keyPoints.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        <Target size={14} /> Key Points
+                        <TabsContent value="summary" className="mt-0">
+                            {!summaryData && !loading && (
+                                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-ai/20 bg-ai/10">
+                                        <Sparkles size={32} className="text-ai" />
                                     </div>
-                                    <ul className="space-y-1.5">
-                                        {summaryData.keyPoints.map((point, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                                                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">{i + 1}</span>
-                                                {point}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <p className="text-sm text-muted-foreground text-center max-w-xs">
+                                        AI will analyze your meeting transcript and generate a structured summary with key points and action items.
+                                    </p>
+                                    <button
+                                        onClick={generateSummary}
+                                        disabled={!transcript}
+                                        className="flex items-center gap-2 rounded-xl bg-ai px-6 py-3 font-semibold text-ai-foreground shadow-soft transition-all hover:bg-ai/90 disabled:opacity-30"
+                                    >
+                                        <Sparkles size={18} />
+                                        Generate Summary
+                                    </button>
+                                    {!transcript && (
+                                        <p className="text-xs text-warning">No transcript available. Speak during the call to build a transcript.</p>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Action Items */}
-                            {summaryData.actionItems.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-500 uppercase tracking-wider">
-                                        <CheckCircle size={14} /> Action Items
+                            {loading && (
+                                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                                    <div className="relative">
+                                        <Loader2 size={40} className="text-ai animate-spin" />
+                                        <Sparkles size={16} className="absolute -right-1 -top-1 text-ai animate-pulse" />
                                     </div>
-                                    <ul className="space-y-1.5">
-                                        {summaryData.actionItems.map((item, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-foreground bg-amber-500/5 px-3 py-2 rounded-lg border border-amber-500/10">
-                                                <span className="text-amber-500 mt-0.5">☐</span>
-                                                {item}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <p className="text-sm font-medium text-foreground">Analyzing your meeting...</p>
+                                    <p className="text-xs text-muted-foreground">This takes a few seconds</p>
                                 </div>
                             )}
 
-                            {/* Decisions */}
-                            {summaryData.decisions.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-green-500 uppercase tracking-wider">
-                                        <Lightbulb size={14} /> Decisions Made
-                                    </div>
-                                    <ul className="space-y-1.5">
-                                        {summaryData.decisions.map((dec, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-foreground bg-green-500/5 px-3 py-2 rounded-lg border border-green-500/10">
-                                                <span className="text-green-500 mt-0.5">✓</span>
-                                                {dec}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                            {summaryData && !loading && (
+                                <SummaryTabContent summaryData={summaryData} />
                             )}
-                        </div>
-                    )}
+                        </TabsContent>
+
+                        <TabsContent value="actions" className="mt-0">
+                            <StructuredActionItems actionItems={actionItems} fallbackItems={summaryData?.actionItems ?? []} />
+                        </TabsContent>
+
+                        <TabsContent value="transcript" className="mt-0">
+                            <TranscriptRenderer transcript={transcript} />
+                        </TabsContent>
+                    </Tabs>
                 </div>
 
                 {/* Footer */}
@@ -207,7 +168,7 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleCopy}
-                                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${copied ? "bg-green-500/15 text-green-600" : "bg-muted hover:bg-muted/80 text-foreground"}`}
+                                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-all ${copied ? "bg-success/15 text-success" : "bg-muted text-foreground hover:bg-muted/80"}`}
                             >
                                 {copied ? <Check size={14} /> : <Copy size={14} />}
                                 {copied ? "Copied!" : "Copy"}
@@ -224,4 +185,112 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
             </div>
         </div>
     );
+}
+
+function SummaryTabContent({ summaryData }: { summaryData: SummaryData }) {
+    return (
+        <div className="space-y-5">
+            <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                    <FileText size={14} /> Overview
+                </div>
+                        <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
+                    {summaryData.summary}
+                </p>
+            </div>
+
+            {summaryData.keyPoints.length > 0 && (
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                        <Target size={14} /> Key Points
+                    </div>
+                    <ul className="space-y-1.5">
+                        {summaryData.keyPoints.map((point, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">{i + 1}</span>
+                                {point}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {summaryData.decisions.length > 0 && (
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-success">
+                        <Lightbulb size={14} /> Decisions Made
+                    </div>
+                    <ul className="space-y-1.5">
+                        {summaryData.decisions.map((dec, i) => (
+                            <li key={i} className="flex items-start gap-2 rounded-lg border border-success/10 bg-success/5 px-3 py-2 text-sm text-foreground">
+                                <CheckCircle size={14} className="mt-0.5 shrink-0 text-success" />
+                                {dec}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function StructuredActionItems({ actionItems, fallbackItems }: { actionItems: ClientActionItem[]; fallbackItems: string[] }) {
+    if (actionItems.length === 0 && fallbackItems.length === 0) {
+        return (
+            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+                No action items captured.
+            </div>
+        );
+    }
+
+    if (actionItems.length > 0) {
+        return (
+            <ul className="space-y-2">
+                {actionItems.map((item) => (
+                    <li key={item.id} className="flex items-start gap-2 rounded-lg border border-warning/10 bg-warning/5 px-3 py-2 text-sm text-foreground">
+                        <CheckCircle size={14} className="mt-0.5 shrink-0 text-warning" />
+                        <div>
+                            <p>{item.text}</p>
+                            {(item.owner || item.dueDate) && (
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    {[item.owner ? `Owner: ${item.owner}` : null, item.dueDate ? `Due: ${formatDate(item.dueDate)}` : null].filter(Boolean).join(" · ")}
+                                </p>
+                            )}
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        );
+    }
+
+    return (
+        <ul className="space-y-1.5">
+            {fallbackItems.map((item, i) => (
+                <li key={i} className="flex items-start gap-2 rounded-lg border border-warning/10 bg-warning/5 px-3 py-2 text-sm text-foreground">
+                    <CheckCircle size={14} className="mt-0.5 shrink-0 text-warning" />
+                    {item}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function formatMarkdownActionItems(actionItems: ClientActionItem[], fallbackItems: string[]) {
+    if (actionItems.length > 0) {
+        return actionItems.map((item) => {
+            const meta = [
+                item.owner ? `Owner: ${item.owner}` : null,
+                item.dueDate ? `Due: ${formatDate(item.dueDate)}` : null,
+            ].filter(Boolean).join(" | ");
+            return `- [ ] ${item.text}${meta ? ` (${meta})` : ""}`;
+        }).join("\n");
+    }
+
+    return fallbackItems.map((item) => `- [ ] ${item}`).join("\n");
+}
+
+function formatDate(value: string) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
