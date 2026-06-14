@@ -118,7 +118,10 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
     useEffect(() => {
         if (!showChat && chatMessages.length > 0) {
             const lastMsg = chatMessages[chatMessages.length - 1];
-            if (!lastMsg.isLocal) setUnreadCount(prev => prev + 1);
+            if (!lastMsg.isLocal) {
+                const timeoutId = window.setTimeout(() => setUnreadCount(prev => prev + 1), 0);
+                return () => window.clearTimeout(timeoutId);
+            }
         }
     }, [chatMessages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,13 +141,6 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         if (!showCaptions) ensureTranscription();
         setShowCaptions(prev => !prev);
     }, [showCaptions, ensureTranscription]);
-
-    // Auto-fetch suggestions when new transcript entries come in (throttled)
-    useEffect(() => {
-        if (transcript.length > 0 && transcript.length % 5 === 0) {
-            fetchSuggestions();
-        }
-    }, [transcript.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchSuggestions = useCallback(async () => {
         if (loadingSuggestions) return;
@@ -166,6 +162,14 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         }
         setLoadingSuggestions(false);
     }, [loadingSuggestions, getRecentTranscript, transcript]);
+
+    // Auto-fetch suggestions when new transcript entries come in (throttled)
+    useEffect(() => {
+        if (transcript.length > 0 && transcript.length % 5 === 0) {
+            const timeoutId = window.setTimeout(fetchSuggestions, 0);
+            return () => window.clearTimeout(timeoutId);
+        }
+    }, [transcript.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleRequestSuggestions = useCallback(() => {
         ensureTranscription();
@@ -465,7 +469,7 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
                     {/* Live Captions Overlay */}
                     {showCaptions && currentText && (
                         <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[90%] pointer-events-none animate-in fade-in duration-200">
-                            <div className="bg-black/75 backdrop-blur-sm text-white text-center px-6 py-3 rounded-2xl shadow-lg">
+                            <div className="rounded-2xl bg-foreground/80 px-6 py-3 text-center text-background shadow-soft backdrop-blur-sm">
                                 <p className="text-sm sm:text-base font-medium leading-relaxed">{currentText}</p>
                             </div>
                         </div>
@@ -483,7 +487,7 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
                     <>
                         {/* Mobile backdrop */}
                         <div
-                            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+                            className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-sm md:hidden"
                             onClick={toggleChat}
                         />
                         <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:w-80 md:shrink-0 md:h-full md:border-l md:border-border animate-in slide-in-from-right-10 duration-300">
