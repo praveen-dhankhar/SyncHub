@@ -1,6 +1,7 @@
 import type { ConnContext, MessageHandler } from "./router.js";
 import type { WebSocket } from "ws";
-import RoomService, { type PeerRole } from "./services/room.service.js";
+import { type PeerRole } from "./services/room.service.js";
+import { liveRoomService } from "./services/live-room.service.js";
 import { sfuService } from "./services/sfu.service.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -16,7 +17,7 @@ import { prisma } from "../lib/prisma.js";
 export function registerWebRtcHandlers(router: {
   register(type: string, handler: MessageHandler): void;
 }) {
-  const roomService = new RoomService();
+  const roomService = liveRoomService;
 
   // ── JOIN (shared: both 1:1 and group) ────────────
   router.register("join", (ctx: ConnContext, message: any) => {
