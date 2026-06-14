@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { SmilePlus } from "lucide-react";
 
 const REACTION_EMOJIS = ["👏", "🎉", "❤️", "😂", "🔥", "👍"];
 
@@ -59,7 +60,7 @@ export function EmojiReactions({ onSendReaction, incomingReaction }: EmojiReacti
                         <div className="flex flex-col items-center gap-1">
                             <span className="text-4xl sm:text-5xl drop-shadow-lg">{fe.emoji}</span>
                             {fe.sender && (
-                                <span className="text-[9px] font-bold text-white bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                <span className="rounded-full border border-border bg-card/80 px-2 py-0.5 text-[9px] font-bold text-foreground backdrop-blur-sm">
                                     {fe.sender}
                                 </span>
                             )}
@@ -71,23 +72,25 @@ export function EmojiReactions({ onSendReaction, incomingReaction }: EmojiReacti
             {/* Reaction trigger button */}
             <button
                 onClick={() => setShowBar(prev => !prev)}
-                className={`fixed bottom-28 right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-300 ${showBar
-                        ? "bg-primary text-primary-foreground scale-110"
-                        : "bg-background/80 backdrop-blur-xl border border-border text-foreground hover:bg-muted"
+                className={`fixed bottom-28 right-6 z-50 rounded-full p-3 shadow-soft transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${showBar
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border bg-card/80 text-foreground backdrop-blur-xl hover:bg-accent"
                     }`}
                 title="React"
+                aria-label="Open reaction picker"
             >
-                <span className="text-xl">😊</span>
+                <SmilePlus size={22} />
             </button>
 
             {/* Reaction bar */}
             {showBar && (
-                <div className="fixed bottom-44 right-4 z-50 flex flex-col gap-2 bg-background/90 backdrop-blur-xl border border-border rounded-2xl p-2 shadow-2xl animate-in slide-in-from-bottom-5 fade-in duration-200">
+                <div className="fixed bottom-44 right-4 z-50 flex flex-col gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-soft backdrop-blur-xl animate-in slide-in-from-bottom-5 fade-in duration-200">
                     {REACTION_EMOJIS.map((emoji) => (
                         <button
                             key={emoji}
                             onClick={() => handleClick(emoji)}
-                            className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl hover:bg-muted hover:scale-125 transition-all active:scale-90"
+                            className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition-all hover:bg-muted active:scale-90"
+                            aria-label={`Send ${emoji} reaction`}
                         >
                             {emoji}
                         </button>

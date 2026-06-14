@@ -21,14 +21,14 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
             {/* Backdrop */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
+                    className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm transition-opacity"
                     onClick={onClose}
                 />
             )}
 
             {/* Panel */}
             <div
-                className={`fixed top-0 right-0 h-full w-80 bg-background/95 backdrop-blur-xl border-l border-border/50 shadow-2xl z-50 transform transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"
+                className={`fixed right-0 top-0 z-50 h-full w-80 transform border-l border-border bg-card/95 shadow-soft backdrop-blur-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"
                     }`}
             >
                 {/* Header */}
@@ -41,8 +41,9 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-muted transition-colors"
+                        className="rounded-xl p-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                         title="Close"
+                        aria-label="Close participants"
                     >
                         <X size={18} />
                     </button>
@@ -53,13 +54,13 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
                     {participants.map((p) => (
                         <div
                             key={p.peerId}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors group"
+                            className="group flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted/50"
                         >
                             {/* Avatar */}
                             <div
                                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${p.isLocal
                                         ? "bg-primary/20 text-primary"
-                                        : "bg-muted text-muted-foreground"
+                                        : "bg-muted/70 text-muted-foreground"
                                     }`}
                             >
                                 {p.isLocal ? (
@@ -82,7 +83,7 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
                             {/* Mic Status */}
                             <div className="shrink-0">
                                 {p.isMuted ? (
-                                    <MicOff size={16} className="text-destructive" />
+                                    <MicOff size={16} className="text-danger" />
                                 ) : (
                                     <Mic size={16} className="text-muted-foreground" />
                                 )}
@@ -94,7 +95,7 @@ export function ParticipantList({ isOpen, onClose, participants }: ParticipantLi
                 {/* Footer */}
                 <div className="p-4 border-t border-border/50">
                     <p className="text-xs text-center text-muted-foreground">
-                        End-to-end encrypted • Powered by SyncHub
+                        End-to-end encrypted - Powered by SyncHub
                     </p>
                 </div>
             </div>
