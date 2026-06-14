@@ -25,17 +25,18 @@ export function VirtualBackgroundSelector({ currentMode, currentUrl, onSelect }:
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${currentMode !== "none" ? "bg-primary text-primary-foreground hover:opacity-90" : "text-foreground bg-muted/30 hover:bg-muted"}`}
+                className={`grid shrink-0 place-items-center rounded-xl border p-3 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:p-3.5 ${currentMode !== "none" ? "border-primary/30 bg-primary text-primary-foreground shadow-signal hover:bg-primary/90" : "border-border bg-card/60 text-foreground hover:bg-accent"}`}
                 title="Virtual Background"
+                aria-label="Virtual background"
             >
                 <ImageIcon size={18} className="sm:w-5 sm:h-5" />
             </button>
 
             {isOpen && (
-                <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 w-72 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-2 duration-200 z-50">
-                    <div className="flex items-center justify-between p-3 border-b border-border bg-muted/20">
+                <div className="absolute bottom-full left-1/2 z-50 mb-4 w-72 -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-card/95 shadow-soft backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200">
+                    <div className="flex items-center justify-between border-b border-border bg-muted/20 p-3">
                         <h3 className="font-semibold text-sm">Virtual Background</h3>
-                        <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground">
+                        <button onClick={() => setIsOpen(false)} className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label="Close virtual background menu">
                             <X size={16} />
                         </button>
                     </div>
@@ -51,7 +52,7 @@ export function VirtualBackgroundSelector({ currentMode, currentUrl, onSelect }:
                                         onSelect(opt.mode, opt.url);
                                         setIsOpen(false);
                                     }}
-                                    className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all group ${isActive ? "border-primary" : "border-border hover:border-muted-foreground"}`}
+                                    className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${isActive ? "border-primary" : "border-border hover:border-primary/50"}`}
                                 >
                                     {opt.mode === "none" && (
                                         <div className="absolute inset-0 flex items-center justify-center bg-muted text-xs font-medium text-muted-foreground">
@@ -71,7 +72,7 @@ export function VirtualBackgroundSelector({ currentMode, currentUrl, onSelect }:
                                         />
                                     )}
                                     {isActive && (
-                                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
+                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-primary/20">
                                             <div className="w-2 h-2 rounded-full bg-primary" />
                                         </div>
                                     )}

@@ -12,11 +12,9 @@ export function BrandButton({ className, ...props }: ButtonProps) {
   return (
     <Button
       className={cn(
-        "rounded-[var(--radius-lg)] border-0",
-        "bg-[var(--primary-500)] text-[color:var(--primary-foreground)]",
-        "bg-gradient-to-b from-[var(--primary-400)] to-[var(--primary-500)]",
-        "transition-transform duration-300 ease-in-out",
-        "hover:scale-[1.01] hover:shadow-soft",
+        "rounded-lg border-0 bg-primary text-primary-foreground shadow-signal",
+        "transition-transform duration-200 ease-out",
+        "hover:scale-[1.01] hover:bg-primary/90",
         className,
       )}
       {...props}

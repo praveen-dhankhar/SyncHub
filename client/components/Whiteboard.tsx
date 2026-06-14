@@ -4,14 +4,14 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { Pencil, Eraser, Trash2, X, Minus, Plus } from "lucide-react";
 
 const COLORS = [
-    "#ffffff",
-    "#f87171", // red
-    "#fb923c", // orange
-    "#facc15", // yellow
-    "#4ade80", // green
-    "#60a5fa", // blue
-    "#a78bfa", // violet
-    "#f472b6", // pink
+    "--wb-ink-1",
+    "--wb-ink-2",
+    "--wb-ink-3",
+    "--wb-ink-4",
+    "--wb-ink-5",
+    "--wb-ink-6",
+    "--wb-ink-7",
+    "--wb-ink-8",
 ];
 
 interface DrawPoint {
@@ -32,13 +32,11 @@ interface WhiteboardProps {
     incomingClear?: boolean;
 }
 
-const CANVAS_BG = "#09090b"; // match standard deep zinc background
-
 export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, incomingClear }: WhiteboardProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawingRef = useRef(false);
     const [tool, setTool] = useState<"pen" | "eraser">("pen");
-    const [color, setColor] = useState("#60a5fa");
+    const [color, setColor] = useState("--wb-ink-6");
     const [lineWidth, setLineWidth] = useState(3);
 
     // Initialize canvas with grid background
@@ -64,11 +62,11 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
 
     const fillBg = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
         // Solid background
-        ctx.fillStyle = CANVAS_BG;
+        ctx.fillStyle = resolveCssColor("--whiteboard-bg");
         ctx.fillRect(0, 0, w, h);
 
         // Grid lines (professional look)
-        ctx.strokeStyle = "rgba(255,255,255,0.03)";
+        ctx.strokeStyle = resolveCssColor("--whiteboard-grid");
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (let x = 0; x < w; x += 40) {
@@ -107,10 +105,10 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
         } else {
             ctx.lineTo(x, y);
             if (point.tool === "eraser") {
-                ctx.strokeStyle = CANVAS_BG;
+                ctx.strokeStyle = resolveCssColor("--whiteboard-bg");
                 ctx.lineWidth = point.lineWidth * 4;
             } else {
-                ctx.strokeStyle = point.color;
+                ctx.strokeStyle = resolveCssColor(point.color);
                 ctx.lineWidth = point.lineWidth;
             }
             ctx.globalAlpha = 1;
@@ -149,7 +147,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         isDrawingRef.current = true;
         const pos = getPos(e);
-        const point: DrawPoint = { ...pos, color, lineWidth, tool, isStart: true };
+        const point: DrawPoint = { ...pos, color: resolveCssColor(color), lineWidth, tool, isStart: true };
         drawPoint(point);
         onDraw(point);
     };
@@ -157,7 +155,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDrawingRef.current) return;
         const pos = getPos(e);
-        const point: DrawPoint = { ...pos, color, lineWidth, tool, isStart: false };
+        const point: DrawPoint = { ...pos, color: resolveCssColor(color), lineWidth, tool, isStart: false };
         drawPoint(point);
         onDraw(point);
     };
@@ -175,7 +173,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
 
     return (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-            <div className="bg-[#09090b] border border-border rounded-xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+            <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-border shadow-soft" style={{ backgroundColor: "var(--whiteboard-bg)" }}>
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
                     <div className="flex items-center gap-4 flex-wrap">
@@ -208,8 +206,9 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
                                 <button
                                     key={c}
                                     onClick={() => { setColor(c); setTool("pen"); }}
-                                    className={`w-5 h-5 rounded-full transition-all border ${color === c && tool === "pen" ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110" : "opacity-80 hover:opacity-100 border-white/20"}`}
-                                    style={{ backgroundColor: c }}
+                                    className={`h-5 w-5 rounded-full border transition-all ${color === c && tool === "pen" ? "scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border opacity-80 hover:opacity-100"}`}
+                                    style={{ backgroundColor: `var(${c})` }}
+                                    aria-label={`Select ${c.replace("--wb-ink-", "ink ")} color`}
                                 />
                             ))}
                         </div>
@@ -241,7 +240,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
                         </button>
                     </div>
 
-                    <button onClick={onClose} className="text-white/70 hover:text-white hover:bg-red-500/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/30" title="Close Whiteboard">
+                    <button onClick={onClose} className="rounded-lg border border-transparent p-2 text-primary-foreground/70 transition-all hover:border-danger/30 hover:bg-danger/20 hover:text-primary-foreground" title="Close Whiteboard" aria-label="Close whiteboard">
                         <X size={20} />
                     </button>
                 </div>
@@ -263,4 +262,10 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
             </div>
         </div>
     );
+}
+
+function resolveCssColor(value: string) {
+    if (!value.startsWith("--")) return value;
+    if (typeof window === "undefined") return value;
+    return getComputedStyle(document.documentElement).getPropertyValue(value).trim() || value;
 }
