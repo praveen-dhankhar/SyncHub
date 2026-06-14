@@ -7,6 +7,8 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { HowItWorks } from "@/components/sections/how-it-works"
 import { UseCases } from "@/components/sections/use-cases"
 import { apiRequest } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { LogOut, Radar } from "lucide-react"
 
 export default function Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -18,26 +20,30 @@ export default function Page() {
       .catch(() => setIsLoggedIn(false))
   }, [])
   return (
-    <main>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-b border-border">
+    <main className="sync-mesh-bg min-h-screen">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
-            <div aria-hidden className="h-6 w-6 rounded-[8px] bg-primary"></div>
-            <span className="font-semibold">OneStudio</span>
+            <div aria-hidden className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-signal">
+              <Radar size={17} />
+            </div>
+            <span className="text-base font-bold">SyncHub</span>
           </div>
           <nav className="hidden md:flex items-center gap-6 text-sm">
             <a href="#how-it-works" className="text-foreground/80 hover:text-foreground transition-colors">
-              How it works
+              Room flow
             </a>
             <a href="#use-cases" className="text-foreground/80 hover:text-foreground transition-colors">
-              Features
+              Collaboration
             </a>
             <a href="/dashboard" className="text-foreground/80 hover:text-foreground transition-colors font-medium">
               Dashboard
             </a>
             <ThemeToggle />
             {isLoggedIn ? (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={async () => {
                   try {
                     const { apiRequest } = await import('@/lib/api');
@@ -47,14 +53,15 @@ export default function Page() {
                   setIsLoggedIn(false);
                   window.location.href = "/auth/login";
                 }}
-                className="px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
+                className="text-danger hover:bg-danger/10 hover:text-danger"
               >
+                <LogOut size={14} />
                 Logout
-              </button>
+              </Button>
             ) : (
               <a
                 href="/auth/login"
-                className="px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-md transition-colors"
+                className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-signal transition-colors hover:bg-primary/90"
               >
                 Login
               </a>
@@ -72,27 +79,29 @@ export default function Page() {
         <div className="mx-auto max-w-6xl px-6 py-10 text-sm text-foreground/70 grid gap-4 md:grid-cols-3">
           <div>
             <div className="flex items-center gap-2">
-              <div aria-hidden className="h-5 w-5 rounded-[8px] bg-primary" />
-              <span className="font-semibold">OneStudio</span>
+              <div aria-hidden className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+                <Radar size={15} />
+              </div>
+              <span className="font-semibold text-foreground">SyncHub</span>
             </div>
-            <p className="mt-3 max-w-sm">Create, stream, and edit professional broadcasts—zero hassle.</p>
+            <p className="mt-3 max-w-sm">Secure video rooms with whiteboards, captions, action items, and analytics in one live workspace.</p>
           </div>
           <div>
             <div className="font-medium mb-2">Product</div>
             <ul className="space-y-1">
               <li>
-                <a className="hover:text-foreground" href="/studio">
-                  Studio
+                <a className="hover:text-foreground" href="#how-it-works">
+                  Room flow
                 </a>
               </li>
               <li>
-                <a className="hover:text-foreground" href="/editor">
-                  Editor
+                <a className="hover:text-foreground" href="#learn-more">
+                  Meeting tools
                 </a>
               </li>
               <li>
-                <a className="hover:text-foreground" href="#integrations">
-                  Integrations
+                <a className="hover:text-foreground" href="/dashboard">
+                  Analytics
                 </a>
               </li>
             </ul>
@@ -102,7 +111,7 @@ export default function Page() {
             <ul className="space-y-1">
               <li>
                 <a className="hover:text-foreground" href="#faq">
-                  FAQ
+                  Security
                 </a>
               </li>
               <li>
@@ -117,7 +126,7 @@ export default function Page() {
               </li>
             </ul>
           </div>
-          <div className="md:col-span-3 mt-4">© {new Date().getFullYear()} OneStudio. All rights reserved.</div>
+          <div className="md:col-span-3 mt-4">© {new Date().getFullYear()} SyncHub. All rights reserved.</div>
         </div>
       </footer>
     </main>
