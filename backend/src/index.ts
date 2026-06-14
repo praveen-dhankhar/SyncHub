@@ -1,3 +1,4 @@
+import "dotenv/config";
 import app from "./app.js";
 import { createServer } from "http";
 import { setupWebSocketServer } from "./realtime/ws.server.js";
@@ -6,7 +7,13 @@ import { registerWebRtcHandlers } from "./realtime/webrtc.handler.js";
 import { sfuService } from "./realtime/services/sfu.service.js";
 import { WebSocket } from "ws";
 
-const PORT = 5000;
+const portValue = process.env.PORT ?? "5001";
+const PORT = Number.parseInt(portValue, 10);
+
+if (!Number.isFinite(PORT) || PORT <= 0) {
+  console.error(`Invalid PORT value: ${portValue}`);
+  process.exit(1);
+}
 
 const server = createServer(app);
 
@@ -73,7 +80,7 @@ function gracefulShutdown(signal: string) {
   setTimeout(() => {
     console.error("[Shutdown] Forced exit after timeout");
     process.exit(1);
-  }, 5000);
+  }, 5001);
 }
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
