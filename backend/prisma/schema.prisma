@@ -105,6 +105,10 @@ model Room {
   scheduledAt     DateTime?                      // If set, this is a future meeting
   endedAt         DateTime?                      // Timestamp when host ended the meeting
   inviteCode      String    @unique @default(uuid()) // Shareable join code (e.g. /join/ABC123)
+  transcript      String?
+  summary         String?
+  summaryData     Json?
+  embeddingStatus String    @default("pending") // pending | completed | failed
 
   hostId String
   host   User @relation("RoomHost", fields: [hostId], references: [id])
@@ -113,6 +117,8 @@ model Room {
   recordings    Recording[]
   presentations Presentation[]
   chatMessages  ChatMessage[]
+  actionItems   ActionItem[]
+  embeddings    MeetingEmbedding[]
 
   @@index([inviteCode])
   @@index([hostId])
@@ -189,4 +195,32 @@ model ChatMessage {
 
   @@index([roomId])
   @@index([createdAt])
+}
+
+model ActionItem {
+  id             String   @id @default(uuid())
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  text           String
+  owner          String?
+  dueDate        DateTime?
+  confidence     Float
+  extractionPass Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  @@index([roomId])
+}
+
+model MeetingEmbedding {
+  id             String   @id @default(uuid())
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  chunkText      String
+  chunkStartMs   Int?
+  chunkEndMs     Int?
+  primarySpeaker String?
+  embedding      Unsupported("vector(768)")
+  createdAt      DateTime @default(now())
+
+  @@index([roomId])
 }

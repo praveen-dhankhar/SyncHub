@@ -1,6 +1,11 @@
 import { prisma } from "../lib/prisma.js";
 import type { Request, Response } from "express";
 import { randomBytes } from "crypto";
+import { extractActionItems } from "../ai/action-items.js";
+import { replaceRoomEmbeddings } from "../ai/embeddings.js";
+import { generateMeetingSummaryData, normalizeSummary, type MeetingSummaryData } from "../ai/summary.js";
+import { replaceActionItems } from "../services/action-items.service.js";
+import { broadcastActionItemsUpdate } from "../realtime/services/live-room.service.js";
 
 // ─── Helper ─────────────────────────────────────────────
 // Generates a short, human-friendly invite code.
@@ -10,6 +15,31 @@ function generateInviteCode(): string {
   return randomBytes(4).toString("hex").slice(0, 6);
 }
 
+function parseHighlightRange(query: Request["query"]): { startMs: number; endMs: number } | null | "invalid" {
+  const highlight = typeof query.highlight === "string" ? query.highlight : null;
+  const explicitStart = typeof query.highlightStartMs === "string" ? query.highlightStartMs : null;
+  const explicitEnd = typeof query.highlightEndMs === "string" ? query.highlightEndMs : null;
+
+  let startRaw: string | null = explicitStart;
+  let endRaw: string | null = explicitEnd;
+
+  if (highlight && (!startRaw || !endRaw)) {
+    const [start, end] = highlight.split("-");
+    startRaw = start ?? null;
+    endRaw = end ?? null;
+  }
+
+  if (!startRaw && !endRaw) return null;
+  if (!startRaw || !endRaw) return "invalid";
+
+  const startMs = Number(startRaw);
+  const endMs = Number(endRaw);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return "invalid";
+  if (startMs < 0 || endMs < 0 || endMs < startMs) return "invalid";
+
+  return { startMs: Math.trunc(startMs), endMs: Math.trunc(endMs) };
+}
+
 // Default max participants per room type.
 // These are sensible defaults; the host can override on creation.
 const DEFAULT_MAX_PARTICIPANTS: Record<string, number> = {
@@ -17,6 +47,8 @@ const DEFAULT_MAX_PARTICIPANTS: Record<string, number> = {
   GROUP: 10,
   VIRTUAL_ROOM: 20,
 };
+
+const MAX_TRANSCRIPT_CHARS = 200_000;
 
 // ─── CREATE ROOM ────────────────────────────────────────
 // POST /rooms
@@ -108,6 +140,49 @@ export const getRoom = async (req: Request, res: Response) => {
   } catch (err) {
     console.error("Failed to get room:", err);
     return res.status(500).json({ error: "Failed to get room" });
+  }
+};
+
+// ─── GET ROOM TRANSCRIPT ────────────────────────────────
+// GET /rooms/:id/transcript
+export const getRoomTranscript = async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const roomId = req.params.id;
+
+  try {
+    const room = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        OR: [
+          { hostId: userId },
+          { participants: { some: { userId } } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        transcript: true,
+      },
+    });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+
+    const range = parseHighlightRange(req.query);
+    if (range === "invalid") {
+      return res.status(400).json({ message: "Invalid highlight range" });
+    }
+
+    return res.json({
+      roomId: room.id,
+      roomName: room.name || "Meeting",
+      transcript: room.transcript || "",
+      ...(range ? { highlightStartMs: range.startMs, highlightEndMs: range.endMs } : {}),
+    });
+  } catch (err) {
+    console.error("Failed to get transcript:", err);
+    return res.status(500).json({ error: "Failed to get transcript" });
   }
 };
 
@@ -298,6 +373,14 @@ export const leaveRoom = async (req: Request, res: Response) => {
 export const endRoom = async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   const roomId = req.params.id;
+  const transcript = typeof req.body?.transcript === "string" ? req.body.transcript.trim() : "";
+  const duration = typeof req.body?.duration === "string" ? req.body.duration : undefined;
+  const participantCount = typeof req.body?.participantCount === "number" ? req.body.participantCount : undefined;
+  const suppliedSummary = req.body?.summaryData ? normalizeSummary(req.body.summaryData) : null;
+
+  if (transcript.length > MAX_TRANSCRIPT_CHARS) {
+    return res.status(400).json({ message: "Invalid transcript" });
+  }
 
   try {
     const room = await prisma.room.findUnique({
@@ -314,13 +397,23 @@ export const endRoom = async (req: Request, res: Response) => {
     }
 
     const now = new Date();
+    const summaryData = suppliedSummary ?? await generateOptionalSummary(transcript, duration, participantCount);
+    const finalTranscript = transcript || room.transcript || "";
+    const finalSummary = summaryData?.summary || room.summary || "";
 
     // Use a transaction to ensure both updates happen atomically
     await prisma.$transaction([
       // Mark the room as ended
       prisma.room.update({
         where: { id: roomId },
-        data: { isActive: false, endedAt: now },
+        data: {
+          isActive: false,
+          endedAt: now,
+          transcript: finalTranscript || null,
+          summary: finalSummary || null,
+          summaryData: summaryData || room.summaryData || undefined,
+          embeddingStatus: finalTranscript ? "pending" : room.embeddingStatus,
+        },
       }),
       // Mark all remaining participants as left
       prisma.roomParticipant.updateMany({
@@ -329,12 +422,71 @@ export const endRoom = async (req: Request, res: Response) => {
       }),
     ]);
 
-    return res.json({ message: "Meeting ended" });
+    await runMeetingMindFinalization(roomId, finalTranscript, finalSummary);
+
+    const actionItems = await prisma.actionItem.findMany({
+      where: { roomId },
+      orderBy: [{ extractionPass: "desc" }, { createdAt: "asc" }],
+    });
+    const updatedRoom = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { embeddingStatus: true },
+    });
+
+    return res.json({ message: "Meeting ended", actionItems, embeddingStatus: updatedRoom?.embeddingStatus ?? room.embeddingStatus });
   } catch (err) {
     console.error("Failed to end room:", err);
     return res.status(500).json({ error: "Failed to end meeting" });
   }
 };
+
+async function generateOptionalSummary(
+  transcript: string,
+  duration?: string,
+  participantCount?: number,
+): Promise<MeetingSummaryData | null> {
+  if (!transcript) return null;
+  try {
+    return await generateMeetingSummaryData(transcript, duration, participantCount);
+  } catch (error: any) {
+    console.error("Meeting summary finalization failed:", error.message);
+    return null;
+  }
+}
+
+async function runMeetingMindFinalization(roomId: string, transcript: string, summary: string) {
+  if (!transcript.trim()) return;
+
+  try {
+    const liveItems = await prisma.actionItem.findMany({
+      where: { roomId, extractionPass: 1 },
+      orderBy: { createdAt: "asc" },
+    });
+    const finalItems = await extractActionItems({
+      transcript,
+      existingItems: liveItems.map((item) => item.text),
+      isFinal: true,
+    });
+    const items = await replaceActionItems(roomId, 2, finalItems);
+    broadcastActionItemsUpdate(roomId, items);
+  } catch (error: any) {
+    console.error("Final action item extraction failed:", error.message);
+  }
+
+  try {
+    await replaceRoomEmbeddings(roomId, transcript, summary);
+    await prisma.room.update({
+      where: { id: roomId },
+      data: { embeddingStatus: "completed" },
+    });
+  } catch (error: any) {
+    console.error("Meeting embedding finalization failed:", error.message);
+    await prisma.room.update({
+      where: { id: roomId },
+      data: { embeddingStatus: "failed" },
+    }).catch((updateError: any) => console.error("Failed to update embedding status:", updateError.message));
+  }
+}
 
 // ─── LIST USER'S ROOMS ──────────────────────────────────
 // GET /rooms

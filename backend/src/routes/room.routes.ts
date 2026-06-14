@@ -8,6 +8,7 @@ import {
     endRoom,
     getUserRooms,
     getUserStats,
+    getRoomTranscript,
 } from "../controllers/room.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -29,6 +30,7 @@ const router = Router();
 router.post("/", protect, createRoom);
 router.get("/", protect, getUserRooms);
 router.get("/stats", protect, getUserStats);
+router.get("/:id/transcript", protect, getRoomTranscript);
 router.get("/:id", protect, getRoom);
 router.post("/:id/join", protect, joinRoom);
 router.post("/:id/leave", protect, leaveRoom);
