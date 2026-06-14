@@ -33,10 +33,12 @@ export function EmojiReactions({ onSendReaction, incomingReaction }: EmojiReacti
 
     // Handle incoming remote reactions
     useEffect(() => {
-        if (incomingReaction) {
+        if (!incomingReaction) return;
+        const timeoutId = window.setTimeout(() => {
             addFloating(incomingReaction.emoji, incomingReaction.sender);
-        }
-    }, [incomingReaction]); // eslint-disable-line react-hooks/exhaustive-deps
+        }, 0);
+        return () => window.clearTimeout(timeoutId);
+    }, [incomingReaction, addFloating]);
 
     const handleClick = (emoji: string) => {
         addFloating(emoji, "You");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Palette, Check, X } from "lucide-react";
 
 // ─── Theme Definitions ──────────────────────────────────
@@ -84,12 +84,10 @@ export const CALL_THEMES: CallTheme[] = [
 
 // ─── Hook ───────────────────────────────────────────────
 export function useCallTheme() {
-    const [themeId, setThemeId] = useState("default");
-
-    useEffect(() => {
-        const saved = localStorage.getItem("call-theme");
-        if (saved) setThemeId(saved);
-    }, []);
+    const [themeId, setThemeId] = useState(() => {
+        if (typeof window === "undefined") return "default";
+        return localStorage.getItem("call-theme") || "default";
+    });
 
     const setTheme = useCallback((id: string) => {
         setThemeId(id);

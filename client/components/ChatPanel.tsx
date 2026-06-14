@@ -203,7 +203,7 @@ export function ChatPanel({ messages, onSend, onClose, localUsername, suggestion
                                     {!grouped && (
                                         <div className="flex items-center gap-1.5 mb-1 px-1">
                                             <span className="text-[10px] font-semibold text-muted-foreground">
-                                                {msg.isLocal ? "You" : msg.sender}
+                                                {msg.isLocal ? localUsername || "You" : msg.sender}
                                             </span>
                                             <span className="text-[9px] text-muted-foreground/50">
                                                 {formatTime(msg.timestamp)}
@@ -394,7 +394,7 @@ export function ChatPanel({ messages, onSend, onClose, localUsername, suggestion
             {/* ── Lightbox ── */}
             {lightboxImg && (
                 <div
-                    className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-150"
+                    className="fixed inset-0 z-[300] flex items-center justify-center bg-foreground/85 backdrop-blur-sm animate-in fade-in duration-150"
                     onClick={() => setLightboxImg(null)}
                 >
                     <img
@@ -403,8 +403,9 @@ export function ChatPanel({ messages, onSend, onClose, localUsername, suggestion
                         className="max-w-[90vw] max-h-[90vh] rounded-2xl shadow-2xl object-contain"
                     />
                     <button
-                        className="absolute top-6 right-6 p-2 bg-white/20 rounded-full text-white hover:bg-white/30 transition-colors"
+                        className="absolute right-6 top-6 rounded-full bg-background/20 p-2 text-background transition-colors hover:bg-background/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                         onClick={() => setLightboxImg(null)}
+                        aria-label="Close image preview"
                     >
                         <X size={20} />
                     </button>

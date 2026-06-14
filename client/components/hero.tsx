@@ -51,7 +51,7 @@ export function Hero() {
   }
 
   const handleJoinWithCode = async () => {
-    let code = joinCode.trim()
+    const code = joinCode.trim()
     if (!code) {
       setJoinError("Please enter a room code")
       return

@@ -35,8 +35,8 @@ export default function AuthForm({ type }: { type: "login" | "register" }) {
 
       await apiRequest(`/auth/${type}`, payload);
       router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
     }

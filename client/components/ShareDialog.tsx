@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, Share2, X, ExternalLink } from "lucide-react";
+import { Copy, Check, Share2, X } from "lucide-react";
 
 interface ShareDialogProps {
     isOpen: boolean;

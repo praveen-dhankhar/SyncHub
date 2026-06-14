@@ -39,28 +39,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     const [color, setColor] = useState("--wb-ink-6");
     const [lineWidth, setLineWidth] = useState(3);
 
-    // Initialize canvas with grid background
-    useEffect(() => {
-        if (!isOpen) return;
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const resize = () => {
-            const rect = canvas.parentElement!.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = rect.width * dpr;
-            canvas.height = rect.height * dpr;
-            canvas.style.width = `${rect.width}px`;
-            canvas.style.height = `${rect.height}px`;
-            const ctx = canvas.getContext("2d")!;
-            ctx.scale(dpr, dpr);
-            fillBg(ctx, rect.width, rect.height);
-        };
-        resize();
-        window.addEventListener("resize", resize);
-        return () => window.removeEventListener("resize", resize);
-    }, [isOpen]);
-
-    const fillBg = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const fillBg = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
         // Solid background
         ctx.fillStyle = resolveCssColor("--whiteboard-bg");
         ctx.fillRect(0, 0, w, h);
@@ -78,18 +57,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
             ctx.lineTo(w, y);
         }
         ctx.stroke();
-    };
-
-    // Draw incoming remote points
-    useEffect(() => {
-        if (!incomingDraw) return;
-        drawPoint(incomingDraw);
-    }, [incomingDraw]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Handle incoming clear
-    useEffect(() => {
-        if (incomingClear) clearCanvas();
-    }, [incomingClear]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     const drawPoint = useCallback((point: DrawPoint) => {
         const canvas = canvasRef.current;
@@ -125,7 +93,39 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
         const ctx = canvas.getContext("2d")!;
         const rect = canvas.getBoundingClientRect();
         fillBg(ctx, rect.width, rect.height);
-    }, []);
+    }, [fillBg]);
+
+    // Initialize canvas with grid background
+    useEffect(() => {
+        if (!isOpen) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const resize = () => {
+            const rect = canvas.parentElement!.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+            const ctx = canvas.getContext("2d")!;
+            ctx.scale(dpr, dpr);
+            fillBg(ctx, rect.width, rect.height);
+        };
+        resize();
+        window.addEventListener("resize", resize);
+        return () => window.removeEventListener("resize", resize);
+    }, [fillBg, isOpen]);
+
+    // Draw incoming remote points
+    useEffect(() => {
+        if (!incomingDraw) return;
+        drawPoint(incomingDraw);
+    }, [drawPoint, incomingDraw]);
+
+    // Handle incoming clear
+    useEffect(() => {
+        if (incomingClear) clearCanvas();
+    }, [clearCanvas, incomingClear]);
 
     const getPos = (e: React.MouseEvent | React.TouchEvent) => {
         const canvas = canvasRef.current!;
@@ -172,7 +172,7 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:p-6">
             <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-border shadow-soft" style={{ backgroundColor: "var(--whiteboard-bg)" }}>
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">

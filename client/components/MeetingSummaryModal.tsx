@@ -39,7 +39,7 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
                 participantCount,
             }, "POST");
             setSummaryData(data);
-        } catch (err) {
+        } catch {
             setSummaryData({
                 summary: "Failed to generate summary. Please check your API key.",
                 keyPoints: [],
