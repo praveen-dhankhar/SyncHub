@@ -1,9 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, Clock, Users, Phone, TrendingUp, Video, ArrowLeft, Crown, Calendar, Timer } from "lucide-react";
+import {
+    ArrowLeft,
+    BarChart3,
+    Brain,
+    Calendar,
+    Clock,
+    Crown,
+    Phone,
+    Timer,
+    TrendingUp,
+    Users,
+    Video,
+} from "lucide-react";
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 import { apiRequest } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 
 interface MeetingRecord {
     id: string;
@@ -54,9 +77,9 @@ export default function DashboardPage() {
             try {
                 const data = await apiRequest("/rooms/stats", undefined, "GET");
                 setStats(data);
-            } catch (e: any) {
-                // If unauthorized, redirect to login
-                if (e.message?.includes("Unauthorized") || e.message?.includes("No token")) {
+            } catch (e: unknown) {
+                const message = e instanceof Error ? e.message : "";
+                if (message.includes("Unauthorized") || message.includes("No token")) {
                     router.replace("/auth/login");
                     return;
                 }
@@ -67,200 +90,211 @@ export default function DashboardPage() {
         })();
     }, [router]);
 
-    const maxActivity = stats ? Math.max(Math.max(...stats.dailyActivity.map(d => d.count)), 4) : 4; // Use at least 4 as denominator so 1-meeting days don't look like 100% height but still visible
+    const activityData = useMemo(
+        () =>
+            (stats?.dailyActivity ?? []).map((day) => ({
+                ...day,
+                label: day.date.slice(5),
+                fill: day.count > 0 ? "var(--chart-1)" : "var(--muted)",
+            })),
+        [stats?.dailyActivity],
+    );
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                    <span className="text-muted-foreground text-sm">Loading analytics...</span>
+            <div className="sync-mesh-bg flex min-h-screen items-center justify-center">
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card/85 px-8 py-7 shadow-soft backdrop-blur">
+                    <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                    <span className="text-sm font-medium text-muted-foreground">Loading analytics...</span>
                 </div>
             </div>
         );
     }
 
+    const statCards = [
+        {
+            label: "Total meetings",
+            value: stats?.totalMeetings ?? 0,
+            icon: Video,
+            color: "text-primary",
+            bgColor: "bg-primary/10",
+        },
+        {
+            label: "Total time",
+            value: formatDuration(stats?.totalDurationMs ?? 0),
+            icon: Clock,
+            color: "text-ai",
+            bgColor: "bg-ai/10",
+        },
+        {
+            label: "Avg duration",
+            value: formatDuration(stats?.avgDurationMs ?? 0),
+            icon: Timer,
+            color: "text-warning",
+            bgColor: "bg-warning/10",
+        },
+        {
+            label: "Hosted by you",
+            value: stats?.recentMeetings.filter((m) => m.isHost).length ?? 0,
+            icon: Crown,
+            color: "text-success",
+            bgColor: "bg-success/10",
+        },
+    ];
+
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="sync-mesh-bg min-h-screen">
+            <header className="sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur-2xl">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => router.push("/")} className="p-2 rounded-xl hover:bg-muted transition-all text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" onClick={() => router.push("/")} aria-label="Back to home">
                             <ArrowLeft size={20} />
-                        </button>
+                        </Button>
                         <div>
-                            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                            <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
                                 <BarChart3 className="text-primary" size={24} />
                                 Meeting Analytics
                             </h1>
-                            <p className="text-sm text-muted-foreground">Your personalized meeting insights</p>
+                            <p className="text-sm text-muted-foreground">Room activity, meeting mix, and recent outcomes</p>
                         </div>
                     </div>
+                    <Button onClick={() => router.push("/dashboard/ask")}>
+                        <Brain size={16} />
+                        Ask SyncHub
+                    </Button>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                {/* ── Stat Cards ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                        {
-                            label: "Total Meetings",
-                            value: stats?.totalMeetings ?? 0,
-                            icon: Video,
-                            color: "text-blue-500",
-                            bgColor: "bg-blue-500/10",
-                            borderColor: "border-blue-500/20",
-                        },
-                        {
-                            label: "Total Time",
-                            value: formatDuration(stats?.totalDurationMs ?? 0),
-                            icon: Clock,
-                            color: "text-violet-500",
-                            bgColor: "bg-violet-500/10",
-                            borderColor: "border-violet-500/20",
-                        },
-                        {
-                            label: "Avg Duration",
-                            value: formatDuration(stats?.avgDurationMs ?? 0),
-                            icon: Timer,
-                            color: "text-amber-500",
-                            bgColor: "bg-amber-500/10",
-                            borderColor: "border-amber-500/20",
-                        },
-                        {
-                            label: "Meetings Hosted",
-                            value: stats?.recentMeetings.filter(m => m.isHost).length ?? 0,
-                            icon: Crown,
-                            color: "text-emerald-500",
-                            bgColor: "bg-emerald-500/10",
-                            borderColor: "border-emerald-500/20",
-                        },
-                    ].map((card) => (
-                        <div key={card.label} className={`relative overflow-hidden rounded-2xl border ${card.borderColor} bg-card p-5 hover:shadow-sm transition-all group`}>
-                            <div className="relative flex items-start justify-between">
+            <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {statCards.map((card) => (
+                        <div key={card.label} className="relative overflow-hidden rounded-2xl border border-border bg-card/90 p-5 shadow-soft backdrop-blur transition-transform duration-200 hover:-translate-y-0.5">
+                            <div className="flex items-start justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground font-medium">{card.label}</p>
-                                    <p className={`text-3xl font-bold mt-1 ${card.color}`}>
-                                        {card.value}
-                                    </p>
+                                    <p className="text-sm font-semibold text-muted-foreground">{card.label}</p>
+                                    <p className={`mt-2 text-3xl font-bold ${card.color}`}>{card.value}</p>
                                 </div>
-                                <div className={`p-2.5 rounded-xl ${card.bgColor}`}>
+                                <div className={`rounded-xl p-2.5 ${card.bgColor}`}>
                                     <card.icon size={20} className={card.color} />
                                 </div>
                             </div>
                         </div>
                     ))}
-                </div>
+                </section>
 
-                {/* ── Activity Chart + Meeting Types ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Activity Chart */}
-                    <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="font-bold text-foreground flex items-center gap-2">
-                                <TrendingUp size={18} className="text-primary" />
-                                Meeting Activity
-                            </h2>
-                            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">Last 30 days</span>
+                <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-border bg-card/90 p-6 shadow-soft backdrop-blur lg:col-span-2">
+                        <div className="mb-6 flex items-center justify-between gap-4">
+                            <div>
+                                <h2 className="flex items-center gap-2 font-bold text-foreground">
+                                    <TrendingUp size={18} className="text-primary" />
+                                    Meeting Activity
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">Daily room starts over the last 30 days</p>
+                            </div>
+                            <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">30 days</span>
                         </div>
+
                         {stats && stats.totalMeetings > 0 ? (
-                            <>
-                                <div className="flex items-end gap-[3px] h-44">
-                                    {stats.dailyActivity.map((day) => {
-                                        const barH = Math.max((day.count / maxActivity) * 100, day.count > 0 ? 12 : 3);
-                                        return (
-                                            <div key={day.date} className="flex-1 flex flex-col items-center gap-1 group relative">
-                                                <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-1 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-md">
-                                                    {day.date.slice(5)} — <strong>{day.count}</strong> {day.count === 1 ? "meeting" : "meetings"}
-                                                </div>
-                                                <div
-                                                    className={`w-full rounded-md transition-all duration-300 ${day.count > 0 ? "bg-primary hover:bg-primary/80" : "bg-muted/40"}`}
-                                                    style={{ height: `${barH}%`, minHeight: day.count > 0 ? "8px" : "3px" }}
-                                                />
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex justify-between mt-3 px-1">
-                                    <span className="text-[10px] text-muted-foreground font-mono">{stats.dailyActivity[0]?.date.slice(5)}</span>
-                                    <span className="text-[10px] text-muted-foreground font-mono">{stats.dailyActivity[stats.dailyActivity.length - 1]?.date.slice(5)}</span>
-                                </div>
-                            </>
+                            <div className="h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={activityData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+                                        <CartesianGrid stroke="var(--border)" strokeDasharray="4 6" vertical={false} />
+                                        <XAxis
+                                            dataKey="label"
+                                            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            minTickGap={18}
+                                        />
+                                        <YAxis
+                                            allowDecimals={false}
+                                            tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                                            tickLine={false}
+                                            axisLine={false}
+                                            width={36}
+                                        />
+                                        <Tooltip cursor={{ fill: "var(--accent)" }} content={<ActivityTooltip />} />
+                                        <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                                            {activityData.map((entry) => (
+                                                <Cell key={entry.date} fill={entry.fill} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
                         ) : (
-                            <div className="h-44 flex flex-col items-center justify-center text-muted-foreground">
-                                <BarChart3 size={36} className="mb-3 opacity-20" />
-                                <p className="text-sm">No meeting activity in the last 30 days</p>
-                                <p className="text-xs mt-1 opacity-60">Start a call to see your activity chart!</p>
+                            <div className="flex h-64 flex-col items-center justify-center text-center text-muted-foreground">
+                                <BarChart3 size={38} className="mb-3 opacity-40" />
+                                <p className="text-sm font-medium">No meeting activity in the last 30 days</p>
+                                <p className="mt-1 text-xs">Start a room to populate this chart.</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Meeting Types */}
-                    <div className="rounded-2xl border border-border bg-card p-6">
-                        <h2 className="font-bold text-foreground mb-4 flex items-center gap-2">
+                    <div className="rounded-2xl border border-border bg-card/90 p-6 shadow-soft backdrop-blur">
+                        <h2 className="mb-5 flex items-center gap-2 font-bold text-foreground">
                             <Users size={18} className="text-primary" />
-                            By Type
+                            Meeting Mix
                         </h2>
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                             {Object.entries(stats?.meetingsByType ?? {}).map(([type, count]) => {
                                 const total = stats?.totalMeetings ?? 1;
                                 const pct = Math.round((count / total) * 100);
                                 const colors: Record<string, string> = {
-                                    ONE_TO_ONE: "bg-blue-500",
-                                    GROUP: "bg-violet-500",
-                                    VIRTUAL_ROOM: "bg-amber-500",
+                                    ONE_TO_ONE: "bg-chart-1",
+                                    GROUP: "bg-chart-3",
+                                    VIRTUAL_ROOM: "bg-chart-4",
                                 };
                                 const labels: Record<string, string> = {
-                                    ONE_TO_ONE: "1:1 Calls",
-                                    GROUP: "Group Calls",
-                                    VIRTUAL_ROOM: "Virtual Rooms",
+                                    ONE_TO_ONE: "1:1 calls",
+                                    GROUP: "Group calls",
+                                    VIRTUAL_ROOM: "Virtual rooms",
                                 };
                                 return (
                                     <div key={type}>
-                                        <div className="flex items-center justify-between text-sm mb-1.5">
-                                            <span className="text-foreground font-medium">{labels[type] || type}</span>
+                                        <div className="mb-1.5 flex items-center justify-between text-sm">
+                                            <span className="font-medium text-foreground">{labels[type] || type}</span>
                                             <span className="text-muted-foreground">{count} ({pct}%)</span>
                                         </div>
-                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                        <div className="h-2 overflow-hidden rounded-full bg-muted">
                                             <div className={`h-full rounded-full ${colors[type] || "bg-primary"} transition-all`} style={{ width: `${pct}%` }} />
                                         </div>
                                     </div>
                                 );
                             })}
                             {Object.keys(stats?.meetingsByType ?? {}).length === 0 && (
-                                <p className="text-sm text-muted-foreground text-center py-8">No meetings yet</p>
+                                <p className="py-8 text-center text-sm text-muted-foreground">No meetings yet</p>
                             )}
                         </div>
                     </div>
-                </div>
+                </section>
 
-                {/* ── Recent Meetings ── */}
-                <div className="rounded-2xl border border-border bg-card">
-                    <div className="px-6 py-4 border-b border-border">
-                        <h2 className="font-bold text-foreground flex items-center gap-2">
+                <section className="overflow-hidden rounded-2xl border border-border bg-card/90 shadow-soft backdrop-blur">
+                    <div className="border-b border-border px-6 py-4">
+                        <h2 className="flex items-center gap-2 font-bold text-foreground">
                             <Calendar size={18} className="text-primary" />
                             Recent Meetings
                         </h2>
                     </div>
                     <div className="divide-y divide-border">
                         {stats?.recentMeetings.map((meeting) => (
-                            <div key={meeting.id} className="px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                            <div key={meeting.id} className="flex flex-col gap-3 px-6 py-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${meeting.type === "ONE_TO_ONE" ? "bg-blue-500/10 text-blue-500" : meeting.type === "GROUP" ? "bg-violet-500/10 text-violet-500" : "bg-amber-500/10 text-amber-500"}`}>
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${meeting.type === "ONE_TO_ONE" ? "bg-primary/10 text-primary" : meeting.type === "GROUP" ? "bg-ai/10 text-ai" : "bg-warning/10 text-warning"}`}>
                                         {meeting.type === "ONE_TO_ONE" ? <Phone size={18} /> : <Users size={18} />}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-foreground">{meeting.name || "Meeting"}</p>
+                                        <p className="text-sm font-semibold text-foreground">{meeting.name || "Meeting"}</p>
                                         <p className="text-xs text-muted-foreground">{formatDate(meeting.createdAt)} · {meeting.participantCount} participants</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 pl-14 sm:pl-0">
                                     {meeting.isHost && (
-                                        <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">HOST</span>
+                                        <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-bold text-warning">HOST</span>
                                     )}
                                     {meeting.isActive ? (
-                                        <span className="text-[10px] font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full animate-pulse">LIVE</span>
+                                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">LIVE</span>
                                     ) : (
                                         <span className="text-xs text-muted-foreground">{formatDuration(meeting.durationMs)}</span>
                                     )}
@@ -269,13 +303,34 @@ export default function DashboardPage() {
                         ))}
                         {(!stats?.recentMeetings || stats.recentMeetings.length === 0) && (
                             <div className="px-6 py-12 text-center text-muted-foreground">
-                                <BarChart3 size={40} className="mx-auto mb-3 opacity-30" />
-                                <p className="text-sm">No meetings yet. Start a call to see your analytics!</p>
+                                <BarChart3 size={40} className="mx-auto mb-3 opacity-40" />
+                                <p className="text-sm">No meetings yet. Start a room to see analytics.</p>
                             </div>
                         )}
                     </div>
-                </div>
+                </section>
             </main>
+        </div>
+    );
+}
+
+function ActivityTooltip({
+    active,
+    payload,
+    label,
+}: {
+    active?: boolean;
+    payload?: Array<{ value?: number }>;
+    label?: string;
+}) {
+    if (!active || !payload?.length) return null;
+    const count = Number(payload[0].value ?? 0);
+    return (
+        <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-soft">
+            <p className="font-semibold text-foreground">{label}</p>
+            <p className="text-muted-foreground">
+                {count} {count === 1 ? "meeting" : "meetings"}
+            </p>
         </div>
     );
 }

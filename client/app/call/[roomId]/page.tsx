@@ -3,6 +3,7 @@
 import { useWebRTC } from "@/hooks/use-webrtc";
 import { useRecording } from "@/hooks/use-recording";
 import { useTranscription } from "@/hooks/use-transcription";
+import { useActionItems } from "@/hooks/use-action-items";
 import { useEncryption } from "@/hooks/use-encryption";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { CallControls } from "@/components/CallControls";
@@ -11,6 +12,7 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { MeetingSummaryModal } from "@/components/MeetingSummaryModal";
 import { EmojiReactions } from "@/components/EmojiReactions";
 import { Whiteboard } from "@/components/Whiteboard";
+import { CallThemeSwitcher, useCallTheme } from "@/components/CallThemeSwitcher";
 import { useState, useEffect, useCallback, useRef, use } from "react";
 import { Video, Clock, Users, Share2, Shield, Loader2, Sparkles, PenTool, Lock } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -42,6 +44,7 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
         sendWhiteboardClear,
         sendE2EPublicKey,
         incomingE2EKey,
+        actionItems: serverActionItems,
         sendSignal,
         endCall,
         bgMode,
@@ -64,6 +67,14 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const lastSuggestTime = useRef(0);
+    const fullTranscript = getFullTranscript();
+    const actionItemsState = useActionItems({
+        roomId,
+        transcript: fullTranscript,
+        isActive: callState === "connected",
+        serverItems: serverActionItems,
+    });
+    const { theme, setTheme } = useCallTheme();
 
     useEffect(() => {
         const timer = setInterval(() => setTime(prev => prev + 1), 1000);
@@ -211,25 +222,28 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
         );
     }
 
-    const leaveRoom = () => {
+    const leaveRoom = async () => {
         if (isRecording) stopRecording();
         if (isTranscribing) stopTranscription();
+        try {
+            await apiRequest(`/rooms/${roomId}/end`, {
+                transcript: getFullTranscript(),
+                duration: formatTime(time),
+                participantCount: 2,
+            }, "POST");
+        } catch {
+            // Participants may not be allowed to end the room; local hangup still proceeds.
+        }
         endCall();
         window.location.href = "/";
     };
 
     return (
-        <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden relative">
-            {/* Decorative blobs */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
-            </div>
-
+        <div className={`h-screen ${theme.bgClass} text-foreground flex flex-col overflow-hidden relative`}>
             {/* ── Header ── */}
-            <header className="h-16 shrink-0 flex items-center justify-between px-4 sm:px-8 bg-background/80 backdrop-blur-xl border-b border-border z-50">
+            <header className="sync-surface-strong z-50 flex h-16 shrink-0 items-center justify-between border-b border-border px-4 sm:px-8">
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
                         <Video className="text-primary" size={22} />
                     </div>
                     <div className="flex flex-col">
@@ -240,12 +254,12 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
 
                 <div className="flex items-center gap-3">
                     {isRecording && (
-                        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                            <span className="text-xs font-bold text-red-500">REC</span>
+                        <div className="flex items-center gap-2 rounded-full border border-live/30 bg-live/10 px-3 py-1.5">
+                            <div className="h-2 w-2 rounded-full bg-live animate-pulse" />
+                            <span className="text-xs font-bold text-live">REC</span>
                         </div>
                     )}
-                    <div className="hidden md:flex items-center gap-4 bg-muted/50 px-4 py-1.5 rounded-full border border-border">
+                    <div className="hidden items-center gap-4 rounded-full border border-border bg-card/60 px-4 py-1.5 md:flex">
                         <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
                             <Clock size={14} className="text-primary" />
                             <span>{formatTime(time)}</span>
@@ -254,16 +268,18 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
 
                     {/* E2E badge */}
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isE2EReady
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-muted/50 border-border text-muted-foreground'
+                        ? 'bg-success/10 border-success/30 text-success'
+                        : 'bg-card/60 border-border text-muted-foreground'
                         }`} title={isE2EReady ? 'End-to-end encrypted' : 'Establishing encryption...'}>
                         <Lock size={12} />
                         <span className="hidden sm:inline">{isE2EReady ? 'E2E' : '...'}</span>
                     </div>
 
+                    <CallThemeSwitcher currentThemeId={theme.id} onSelect={setTheme} />
+
                     <button
                         onClick={() => setShowShare(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-muted/50 border border-border hover:bg-muted transition-all text-foreground"
+                        className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-4 py-2 text-sm font-semibold text-foreground transition-all hover:bg-accent"
                         title="Invite Participant"
                     >
                         <Share2 size={16} />
@@ -274,12 +290,12 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                     <button
                         onClick={handleAIClick}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${isTranscribing
-                            ? 'bg-gradient-to-r from-violet-500/20 to-purple-500/20 border-violet-500/40 text-violet-500'
-                            : 'bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400'
-                            } hover:from-violet-500/20 hover:to-purple-500/20`}
+                            ? 'bg-ai/20 border-ai/40 text-ai'
+                            : 'bg-ai/10 border-ai/20 text-ai'
+                            } hover:bg-ai/20`}
                         title={isTranscribing ? 'AI Listening — Click for Summary' : 'Start AI — Click to begin listening'}
                     >
-                        {isTranscribing && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+                        {isTranscribing && <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
                         <Sparkles size={16} />
                         <span className="hidden sm:inline">{isTranscribing ? 'AI On' : 'AI'}</span>
                     </button>
@@ -288,8 +304,8 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                     <button
                         onClick={() => setShowWhiteboard(prev => !prev)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${showWhiteboard
-                            ? 'bg-amber-500/20 border-amber-500/40 text-amber-500'
-                            : 'bg-muted/50 border-border text-foreground hover:bg-muted'
+                            ? 'bg-warning/20 border-warning/40 text-warning'
+                            : 'bg-card/60 border-border text-foreground hover:bg-accent'
                             }`}
                         title="Whiteboard"
                     >
@@ -306,7 +322,7 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                     {/* Error Toast */}
                     {errorMessage && (
                         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100]">
-                            <div className="bg-destructive text-destructive-foreground px-6 py-3 rounded-2xl shadow-lg border border-border flex items-center gap-3">
+                            <div className="flex items-center gap-3 rounded-2xl border border-danger/30 bg-danger px-6 py-3 text-danger-foreground shadow-soft">
                                 <Shield size={20} />
                                 <span className="text-sm font-bold">{errorMessage}</span>
                                 <button onClick={() => window.location.reload()} className="ml-2 underline text-xs font-black">Reload</button>
@@ -317,9 +333,9 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                     {/* Remote Recording Notification */}
                     {remoteRecording && (
                         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-5 duration-300">
-                            <div className="bg-red-500/10 border border-red-500/30 px-5 py-2.5 rounded-2xl shadow-lg flex items-center gap-3">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                                <span className="text-sm font-bold text-red-500">
+                            <div className="flex items-center gap-3 rounded-2xl border border-live/30 bg-card/90 px-5 py-2.5 shadow-soft backdrop-blur">
+                                <div className="h-2.5 w-2.5 rounded-full bg-live animate-pulse" />
+                                <span className="text-sm font-bold text-live">
                                     {remoteRecording.recorder} is recording this meeting
                                 </span>
                             </div>
@@ -333,14 +349,14 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                                     <VideoPlayer stream={remoteStream} label="Remote Participant" isScreenShare={remoteIsScreenSharing} isMuted={remoteIsAudioMuted} isVideoOff={remoteIsVideoOff} />
                                 </div>
                             ) : (
-                                <div className="h-full relative flex flex-col items-center justify-center bg-muted/30 rounded-2xl border border-border overflow-hidden">
+                                <div className="signal-grid relative flex h-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-card/70">
                                     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                                        <div className="bg-muted/50 border border-border px-4 py-1.5 rounded-full flex items-center gap-2">
+                                        <div className="flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-1.5 backdrop-blur">
                                             <Users size={14} className="text-primary" />
-                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Waiting for participant...</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Waiting for participant...</span>
                                         </div>
                                     </div>
-                                    <div className="bg-muted p-8 rounded-full text-muted-foreground border border-border z-10">
+                                    <div className="z-10 rounded-full border border-border bg-muted p-8 text-muted-foreground">
                                         <Users size={48} />
                                     </div>
                                 </div>
@@ -389,7 +405,7 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                     )}
 
                     {callState === "disconnected" && (
-                        <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-destructive text-destructive-foreground px-4 py-2 rounded-full shadow-lg z-50 animate-bounce text-sm font-medium">
+                        <div className="fixed top-24 left-1/2 z-50 -translate-x-1/2 rounded-full bg-danger px-4 py-2 text-sm font-semibold text-danger-foreground shadow-soft animate-in fade-in slide-in-from-top-2">
                             Connection Interrupted
                         </div>
                     )}
@@ -413,6 +429,9 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                                 loadingSuggestions={loadingSuggestions}
                                 onRequestSuggestions={handleRequestSuggestions}
                                 currentTranscript={currentText}
+                                actionItems={actionItemsState.items}
+                                actionItemsLoading={actionItemsState.isLoading}
+                                onExportActionItems={actionItemsState.exportMarkdown}
                             />
                         </div>
                     </>
@@ -439,6 +458,7 @@ export default function CallPage({ params }: { params: Promise<{ roomId: string 
                 transcript={getFullTranscript()}
                 duration={formatTime(time)}
                 participantCount={2}
+                actionItems={actionItemsState.items}
             />
 
             <Whiteboard
