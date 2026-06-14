@@ -512,7 +512,7 @@ docker build -t synchub-client \
 
 | Service | Base Image | Exposed Port | Features |
 |---------|-----------|-------------|----------|
-| `backend` | `node:22-bookworm-slim` | `5000` | Multi-stage, mediasoup C++ deps, health check |
+| `backend` | `node:22-bookworm-slim` | `5001` | Multi-stage, mediasoup C++ deps, health check |
 | `client` | `node:22-alpine` | `3000` | Multi-stage, standalone Next.js output, non-root user |
 
 ---
