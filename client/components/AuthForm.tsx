@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { ComponentType, FormEvent, ChangeEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
-import { Mail, Lock, User } from "lucide-react";
+import { Activity, Chrome, Lock, Mail, MessageCircle, Radio, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -18,10 +19,10 @@ export default function AuthForm({ type }: { type: "login" | "register" }) {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const onChange = (e: any) =>
+  const onChange = (e: ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  async function onSubmit(e: any) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -50,296 +51,190 @@ export default function AuthForm({ type }: { type: "login" | "register" }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] px-4 py-8 overflow-hidden">
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        
-        * {
-          font-family: 'Inter', -apple-system, sans-serif;
-        }
-        
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        .animate-fadeInUp {
-          animation: fadeInUp 0.6s ease-out forwards;
-        }
-        
-        .animate-slideIn {
-          animation: slideIn 0.8s ease-out forwards;
-        }
-        
-        .auth-shadow {
-          box-shadow: 
-            0 4px 6px -1px rgba(0, 0, 0, 0.05),
-            0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        }
-        
-        .input-focus {
-          transition: all 0.2s ease;
-        }
-        
-        .input-focus:focus {
-          border-color: #A3E4D7;
-        }
-        
-        .btn-primary {
-          background: #A3E4D7;
-          transition: all 0.2s ease;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-          background: #8DD4C7;
-        }
-        
-        .btn-primary:active:not(:disabled) {
-          background: #7AC4B7;
-        }
-        
-        .oauth-btn {
-          transition: all 0.2s ease;
-        }
-        
-        .oauth-btn:hover {
-          background: #F8F9FA;
-          border-color: #D1D5DB;
-        }
-      `}</style>
-
-      <div
-        className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden bg-white auth-shadow animate-fadeInUp"
-        style={{ animationDelay: '0.1s' }}
-      >
-        {/* LEFT BRAND PANEL */}
-        <div className="relative bg-[#E8F5F3] p-8 lg:p-12 flex flex-col justify-between">
-          {/* Content */}
-          <div className="relative z-10 animate-slideIn" style={{ animationDelay: '0.3s' }}>
-            <div className="inline-block mb-8">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#A3E4D7] rounded-xl flex items-center justify-center">
-                  <div className="w-6 h-6 bg-white rounded-md"></div>
-                </div>
-                <h2 className="text-2xl font-semibold text-[#2C3E50]">OneStudio</h2>
+    <main className="sync-mesh-bg flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-card/90 shadow-soft backdrop-blur-xl lg:grid-cols-[0.95fr_1.05fr]">
+        <section className="relative hidden min-h-[640px] overflow-hidden border-r border-border bg-secondary/45 p-10 lg:flex lg:flex-col lg:justify-between">
+          <div className="signal-grid absolute inset-0 opacity-70" />
+          <div className="relative space-y-8">
+            <div className="flex items-center gap-3">
+              <div className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground shadow-signal">
+                <Radio size={22} />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">SyncHub</p>
+                <p className="text-xs font-semibold text-muted-foreground">Live meeting workspace</p>
               </div>
             </div>
 
-            <h3 className="text-2xl lg:text-3xl font-bold text-[#2C3E50] leading-tight mb-5">
-              Empower Your<br />Broadcasts
-            </h3>
-
-            <p className="text-[#6B7280] text-sm lg:text-base leading-relaxed max-w-md">
-              A unified, high-quality platform to create, stream, and edit professional broadcasts—where all your meeting ideas align with zero hassle.
-            </p>
-          </div>
-
-          {/* Bottom Text */}
-          <div className="relative z-10">
-            <p className="text-sm text-[#9CA3AF]">Built for creators & teams</p>
-          </div>
-        </div>
-
-        {/* RIGHT AUTH PANEL */}
-        <div className="bg-white p-6 lg:p-10 flex items-center justify-center">
-          <div
-            className="w-full max-w-sm space-y-5 animate-fadeInUp"
-            style={{ animationDelay: '0.4s' }}
-          >
-            {/* Header */}
-            <div className="text-center lg:text-left">
-              <h1 className="text-2xl font-bold text-[#2C3E50] mb-2">
-                {type === "login" ? "Welcome Back" : "Create Account"}
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold leading-tight">
+                Sign in where the room, notes, and next steps stay connected.
               </h1>
-              <p className="text-[#6B7280] text-sm">
+              <p className="max-w-md leading-7 text-muted-foreground">
+                Join secure video rooms, keep shared context in the sidebar, and return to every meeting outcome from your dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div className="relative grid gap-3">
+            {[
+              "E2E key exchange for private rooms",
+              "Live captions and AI action items",
+              "Whiteboards, reactions, recordings",
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3 rounded-xl border border-border bg-card/75 px-4 py-3 text-sm font-semibold text-foreground backdrop-blur">
+                <Activity size={16} className="text-primary" />
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="flex items-center justify-center p-6 sm:p-10">
+          <div className="w-full max-w-md space-y-6">
+            <div className="space-y-2 text-center sm:text-left">
+              <div className="mx-auto mb-4 grid size-12 place-items-center rounded-xl bg-primary text-primary-foreground shadow-signal sm:mx-0 lg:hidden">
+                <Radio size={22} />
+              </div>
+              <h2 className="text-3xl font-bold">
+                {type === "login" ? "Welcome back" : "Create your SyncHub account"}
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
                 {type === "login"
-                  ? "Enter your email and password to access your studio"
-                  : "Start your OneStudio journey today"}
+                  ? "Enter your workspace credentials to reopen your meeting dashboard."
+                  : "Set up an account to start rooms, invite teammates, and keep meeting outcomes organized."}
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 animate-fadeInUp">
+              <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
                 {error}
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={onSubmit} className="space-y-3.5">
-              {/* Email Input */}
-              <div>
-                <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                  Email
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#9CA3AF]" />
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    required
-                    value={form.email}
-                    onChange={onChange}
-                    className="w-full rounded-xl bg-white border-2 border-[#E5E7EB] px-12 py-2.5 text-[#111827] placeholder-[#9CA3AF] focus:border-[#A3E4D7] focus:outline-none input-focus"
-                  />
-                </div>
-              </div>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <AuthInput
+                label="Email"
+                icon={Mail}
+                name="email"
+                type="email"
+                placeholder="you@company.com"
+                value={form.email}
+                onChange={onChange}
+              />
 
-              {/* Username Input (Register Only) */}
               {type === "register" && (
-                <div>
-                  <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#9CA3AF]" />
-                    <input
-                      name="username"
-                      placeholder="Choose a username"
-                      required
-                      value={form.username}
-                      onChange={onChange}
-                      className="w-full rounded-xl bg-white border-2 border-[#E5E7EB] px-12 py-2.5 text-[#111827] placeholder-[#9CA3AF] focus:border-[#A3E4D7] focus:outline-none input-focus"
-                    />
-                  </div>
-                </div>
+                <AuthInput
+                  label="Username"
+                  icon={User}
+                  name="username"
+                  placeholder="Choose a display name"
+                  value={form.username}
+                  onChange={onChange}
+                />
               )}
 
-              {/* Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-[#374151] mb-1.5">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#9CA3AF]" />
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    required
-                    value={form.password}
-                    onChange={onChange}
-                    className="w-full rounded-xl bg-white border-2 border-[#E5E7EB] px-12 py-2.5 text-[#111827] placeholder-[#9CA3AF] focus:border-[#A3E4D7] focus:outline-none input-focus"
-                  />
-                </div>
-              </div>
+              <AuthInput
+                label="Password"
+                icon={Lock}
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                value={form.password}
+                onChange={onChange}
+              />
 
-              {/* Remember Me & Forgot Password */}
               {type === "login" && (
                 <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer group">
+                  <label className="flex cursor-pointer items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-2 border-[#D1D5DB] text-[#A3E4D7] focus:ring-2 focus:ring-[#A3E4D7] focus:ring-offset-0"
+                      className="size-4 rounded border-border bg-background text-primary focus:ring-2 focus:ring-ring/40"
                     />
-                    <span className="text-[#6B7280] group-hover:text-[#374151] transition">
-                      Remember me
-                    </span>
+                    Remember me
                   </label>
-                  <a
-                    href="#"
-                    className="text-[#A3E4D7] hover:text-[#8DD4C7] font-medium transition"
-                  >
-                    Forgot Password?
+                  <a href="#" className="font-semibold text-primary transition-colors hover:text-primary/80">
+                    Forgot password?
                   </a>
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full rounded-xl btn-primary text-[#2C3E50] font-semibold py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading
-                  ? "Please wait..."
-                  : type === "login"
-                    ? "Sign In"
-                    : "Create Account"}
-              </button>
+              <Button type="submit" disabled={loading} className="h-11 w-full">
+                {loading ? "Please wait..." : type === "login" ? "Sign in" : "Create account"}
+              </Button>
             </form>
 
-            {/* Divider */}
             <div className="flex items-center gap-4">
-              <div className="flex-1 h-px bg-[#E5E7EB]" />
-              <span className="text-sm text-[#9CA3AF] font-medium">OR</span>
-              <div className="flex-1 h-px bg-[#E5E7EB]" />
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-semibold uppercase text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
             </div>
 
-            {/* OAuth Buttons */}
-            <div className="space-y-2.5">
-              <button
-                type="button"
-                onClick={loginWithGoogle}
-                className="w-full rounded-xl bg-white border-2 border-[#E5E7EB] hover:border-[#D1D5DB] text-[#374151] py-2.5 text-sm font-medium transition oauth-btn flex items-center justify-center gap-3"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
+            <div className="grid gap-2">
+              <Button type="button" variant="outline" onClick={loginWithGoogle} className="h-11 justify-center bg-background/70">
+                <Chrome size={18} />
                 Continue with Google
-              </button>
-
-              <button
-                type="button"
-                onClick={loginWithDiscord}
-                className="w-full rounded-xl bg-white border-2 border-[#E5E7EB] hover:border-[#D1D5DB] text-[#374151] py-2.5 text-sm font-medium transition oauth-btn flex items-center justify-center gap-3"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
-                </svg>
+              </Button>
+              <Button type="button" variant="outline" onClick={loginWithDiscord} className="h-11 justify-center bg-background/70">
+                <MessageCircle size={18} />
                 Continue with Discord
-              </button>
+              </Button>
             </div>
 
-            {/* Switch Link */}
-            <p className="text-center text-sm text-[#6B7280]">
+            <p className="text-center text-sm text-muted-foreground">
               {type === "login" ? (
                 <>
-                  Don't have an account?{" "}
-                  <a
-                    href="/auth/register"
-                    className="text-[#A3E4D7] hover:text-[#8DD4C7] font-semibold transition"
-                  >
-                    Sign Up
+                  Don&apos;t have an account?{" "}
+                  <a href="/auth/register" className="font-semibold text-primary hover:text-primary/80">
+                    Sign up
                   </a>
                 </>
               ) : (
                 <>
                   Already have an account?{" "}
-                  <a
-                    href="/auth/login"
-                    className="text-[#A3E4D7] hover:text-[#8DD4C7] font-semibold transition"
-                  >
-                    Sign In
+                  <a href="/auth/login" className="font-semibold text-primary hover:text-primary/80">
+                    Sign in
                   </a>
                 </>
               )}
             </p>
           </div>
-        </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+type AuthInputProps = {
+  label: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+  name: string;
+  type?: string;
+  placeholder: string;
+  value: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+};
+
+function AuthInput({ label, icon: Icon, name, type = "text", placeholder, value, onChange }: AuthInputProps) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={name} className="text-sm font-semibold text-foreground">
+        {label}
+      </label>
+      <div className="relative">
+        <Icon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          id={name}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          required
+          value={value}
+          onChange={onChange}
+          className="h-11 w-full rounded-lg border border-input bg-background/80 pl-10 pr-3 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+        />
       </div>
     </div>
   );

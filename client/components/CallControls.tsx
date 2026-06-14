@@ -41,14 +41,19 @@ export function CallControls({
     onSelectBg,
     onEndCall,
 }: CallControlsProps) {
+    const baseButton = "grid shrink-0 place-items-center rounded-xl border p-3 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:p-3.5";
+    const idleButton = "border-border bg-card/60 text-foreground hover:bg-accent";
+    const activeButton = "border-primary/30 bg-primary text-primary-foreground shadow-signal hover:bg-primary/90";
+    const dangerButton = "border-danger/30 bg-danger text-danger-foreground hover:bg-danger/90";
+
     return (
-        <div className={`fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl sm:rounded-3xl bg-background/80 backdrop-blur-3xl border border-border shadow-2xl z-50 animate-in slide-in-from-bottom-10 duration-500`}>
+        <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-2 overflow-x-auto rounded-2xl border border-border bg-card/80 px-3 py-3 shadow-soft backdrop-blur-2xl animate-in slide-in-from-bottom-6 duration-300 sm:bottom-8 sm:gap-3 sm:px-5">
             {/* Audio Toggle */}
             <button
                 onClick={onToggleAudio}
-                className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${isAudioMuted ? "bg-destructive text-destructive-foreground hover:opacity-90" : "text-foreground bg-muted/30 hover:bg-muted"
-                    }`}
+                className={`${baseButton} ${isAudioMuted ? dangerButton : idleButton}`}
                 title={isAudioMuted ? "Unmute Mic" : "Mute Mic"}
+                aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
             >
                 {isAudioMuted ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
             </button>
@@ -56,9 +61,9 @@ export function CallControls({
             {/* Video Toggle */}
             <button
                 onClick={onToggleVideo}
-                className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${isVideoOff ? "bg-destructive text-destructive-foreground hover:opacity-90" : "text-foreground bg-muted/30 hover:bg-muted"
-                    }`}
+                className={`${baseButton} ${isVideoOff ? dangerButton : idleButton}`}
                 title={isVideoOff ? "Turn Camera On" : "Turn Camera Off"}
+                aria-label={isVideoOff ? "Turn camera on" : "Turn camera off"}
             >
                 {isVideoOff ? <VideoOff size={18} className="sm:w-5 sm:h-5" /> : <Video size={18} className="sm:w-5 sm:h-5" />}
             </button>
@@ -73,9 +78,9 @@ export function CallControls({
             {/* Screen Share */}
             <button
                 onClick={onToggleScreenShare}
-                className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${isScreenSharing ? "bg-primary text-primary-foreground hover:opacity-90" : "text-foreground bg-muted/30 hover:bg-muted"
-                    }`}
+                className={`${baseButton} ${isScreenSharing ? activeButton : idleButton}`}
                 title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+                aria-label={isScreenSharing ? "Stop screen sharing" : "Share screen"}
             >
                 <ScreenShare size={18} className="sm:w-5 sm:h-5" />
             </button>
@@ -83,12 +88,13 @@ export function CallControls({
             {/* Chat Button */}
             <button
                 onClick={onToggleChat}
-                className="relative p-3 sm:p-3.5 rounded-xl sm:rounded-2xl text-foreground bg-muted/30 hover:bg-muted transition-all"
+                className={`${baseButton} ${idleButton} relative`}
                 title="Chat"
+                aria-label="Open meeting sidebar"
             >
                 <MessageSquare size={18} className="sm:w-5 sm:h-5" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center animate-in zoom-in-50">
+                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-live text-[9px] font-bold text-live-foreground animate-in zoom-in-50">
                         {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                 )}
@@ -97,9 +103,9 @@ export function CallControls({
             {/* Record Button */}
             <button
                 onClick={onToggleRecording}
-                className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${isRecording ? "bg-red-500 text-white hover:bg-red-600" : "text-foreground bg-muted/30 hover:bg-muted"
-                    }`}
+                className={`${baseButton} ${isRecording ? "border-live/30 bg-live text-live-foreground hover:bg-live/90" : idleButton}`}
                 title={isRecording ? "Stop Recording" : "Start Recording"}
+                aria-label={isRecording ? "Stop recording" : "Start recording"}
             >
                 <Circle size={18} className={`sm:w-5 sm:h-5 ${isRecording ? "fill-current animate-pulse" : ""}`} />
             </button>
@@ -108,9 +114,9 @@ export function CallControls({
             {onToggleCaptions && (
                 <button
                     onClick={onToggleCaptions}
-                    className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all duration-300 ${isCaptionsOn ? "bg-primary text-primary-foreground hover:opacity-90" : "text-foreground bg-muted/30 hover:bg-muted"
-                        }`}
+                    className={`${baseButton} ${isCaptionsOn ? activeButton : idleButton}`}
                     title={isCaptionsOn ? "Turn Off Captions" : "Turn On Captions"}
+                    aria-label={isCaptionsOn ? "Turn captions off" : "Turn captions on"}
                 >
                     <Subtitles size={18} className="sm:w-5 sm:h-5" />
                 </button>
@@ -118,8 +124,9 @@ export function CallControls({
 
             <button
                 onClick={onEndCall}
-                className="flex items-center gap-2 px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-destructive text-white hover:bg-red-600 transition-all shadow-xl font-bold group"
+                className="group flex shrink-0 items-center gap-2 rounded-xl border border-danger/30 bg-danger px-4 py-3 font-bold text-danger-foreground shadow-soft transition-all hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:px-5 sm:py-3.5"
                 title="Leave Meeting"
+                aria-label="Leave meeting"
             >
                 <PhoneOff size={18} className="sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
                 <span className="hidden md:inline text-sm">Leave</span>
