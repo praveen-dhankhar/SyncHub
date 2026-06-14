@@ -21,6 +21,7 @@ export function useTranscription() {
     const recognitionRef = useRef<any>(null);
     const speakerRef = useRef("You");
     const shouldRestartRef = useRef(false);
+    const startedAtRef = useRef<number | null>(null);
 
     useEffect(() => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -42,6 +43,7 @@ export function useTranscription() {
 
         speakerRef.current = speaker;
         shouldRestartRef.current = true;
+        if (!startedAtRef.current) startedAtRef.current = Date.now();
 
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -59,7 +61,7 @@ export function useTranscription() {
                         setTranscript(prev => [...prev, {
                             speaker: speakerRef.current,
                             text: finalText,
-                            timestamp: Date.now(),
+                            timestamp: startedAtRef.current ? Date.now() - startedAtRef.current : 0,
                         }]);
                     }
                     setCurrentText("");
@@ -124,7 +126,7 @@ export function useTranscription() {
     }, [transcript]);
 
     const getFullTranscript = useCallback(() => {
-        return transcript.map(e => `${e.speaker}: ${e.text}`).join("\n");
+        return transcript.map(e => `[${formatTranscriptTimestamp(e.timestamp)}] ${e.speaker}: ${e.text}`).join("\n");
     }, [transcript]);
 
     return {
@@ -137,4 +139,11 @@ export function useTranscription() {
         getRecentTranscript,
         getFullTranscript,
     };
+}
+
+function formatTranscriptTimestamp(ms: number) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/api";
 import { useVirtualBackground, BackgroundMode } from "./use-virtual-background";
+import type { ClientActionItem } from "@/components/ActionItemsTab";
 
 // ─── Constants ──────────────────────────────────────────
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/^http/, "ws");
@@ -55,6 +56,7 @@ export function useWebRTC(roomId: string) {
     const [incomingDrawPoint, setIncomingDrawPoint] = useState<any>(null);
     const [incomingClear, setIncomingClear] = useState(false);
     const [incomingE2EKey, setIncomingE2EKey] = useState<JsonWebKey | null>(null);
+    const [actionItems, setActionItems] = useState<ClientActionItem[]>([]);
 
     const {
         processedTrack,
@@ -329,6 +331,10 @@ export function useWebRTC(roomId: string) {
 
                     case "e2e-public-key":
                         setIncomingE2EKey(msg.publicKeyJwk);
+                        break;
+
+                    case "action-items-update":
+                        setActionItems(Array.isArray(msg.items) ? msg.items : []);
                         break;
 
                     case "error":
@@ -737,6 +743,7 @@ export function useWebRTC(roomId: string) {
         incomingDrawPoint,
         incomingClear,
         incomingE2EKey,
+        actionItems,
         toggleAudio,
         toggleVideo,
         toggleScreenShare,
