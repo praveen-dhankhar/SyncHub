@@ -1,4 +1,5 @@
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 import authRoutes from "./routes/auth.routes.js"
 import roomRoutes from "./routes/room.routes.js"
 import aiRoutes from "./routes/ai.routes.js"
@@ -110,6 +111,21 @@ app.get("/health", (_req, res) => {
 // ─── Catch-all ───────────────────────────────────────────
 app.use("/", (_req, res) => {
   res.send("SyncHub API v1.0");
+});
+
+app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  const message = err instanceof Error ? err.message : "Unknown error";
+  console.error("[API] Unhandled error:", message);
+
+  return res.status(500).json({
+    success: false,
+    data: null,
+    message: "Internal server error",
+  });
 });
 
 export default app;

@@ -9,72 +9,133 @@ import {
 } from "../lib/jwt.js";
 import { setAuthCookies } from "../lib/cookies.js";
 
+type PrismaErrorLike = {
+  code?: string;
+  meta?: { target?: string[] | string };
+};
+
+function getPrismaCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    ? (error as PrismaErrorLike).code
+    : undefined;
+}
+
+function sendAuthServiceError(res: Response, error: unknown) {
+  const code = getPrismaCode(error);
+
+  if (code === "P2002") {
+    return res.status(409).json({
+      success: false,
+      data: null,
+      message: "Email or username is already in use",
+    });
+  }
+
+  if (code === "P1000" || code === "P1001" || code === "P1002") {
+    return res.status(503).json({
+      success: false,
+      data: null,
+      message: "Authentication service is unavailable. Check the database connection.",
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    data: null,
+    message: "Authentication failed",
+  });
+}
+
 /* REGISTER */
 export const register = async (req: Request, res: Response) => {
   const { email, username, password } = req.body;
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  if (!email || !username || !password) {
+    return res.status(400).json({
+      success: false,
+      data: null,
+      message: "Email, username, and password are required",
+    });
+  }
 
-  const user = await prisma.user.create({
-    data: { email, username, password: hashedPassword },
-  });
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  const accessToken = generateAccessToken(user.id);
-  const refreshToken = generateRefreshToken(user.id);
+    const user = await prisma.user.create({
+      data: { email, username, password: hashedPassword },
+    });
 
-  await prisma.refreshToken.create({
-    data: {
-      tokenHash: hashToken(refreshToken),
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 86400000),
-    },
-  });
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
 
-  setAuthCookies(res, accessToken, refreshToken);
-  res.status(201).json({
-    success: true,
-    data: { userId: user.id },
-    message: "User registered successfully",
-  });
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: hashToken(refreshToken),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 86400000),
+      },
+    });
+
+    setAuthCookies(res, accessToken, refreshToken);
+    return res.status(201).json({
+      success: true,
+      data: { userId: user.id },
+      message: "User registered successfully",
+    });
+  } catch (error) {
+    return sendAuthServiceError(res, error);
+  }
 };
 
 /* LOGIN */
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user)
-    return res.status(401).json({
+  if (!email || !password) {
+    return res.status(400).json({
       success: false,
       data: null,
-      message: "Invalid credentials",
+      message: "Email and password are required",
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user)
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: "Invalid credentials",
+      });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid)
+      return res.status(401).json({
+        success: false,
+        data: null,
+        message: "Invalid credentials",
+      });
+
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
+
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash: hashToken(refreshToken),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 86400000),
+      },
     });
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid)
-    return res.status(401).json({
-      success: false,
-      data: null,
-      message: "Invalid credentials",
+    setAuthCookies(res, accessToken, refreshToken);
+    return res.json({
+      success: true,
+      data: { userId: user.id },
+      message: "Login successful",
     });
-
-  const accessToken = generateAccessToken(user.id);
-  const refreshToken = generateRefreshToken(user.id);
-
-  await prisma.refreshToken.create({
-    data: {
-      tokenHash: hashToken(refreshToken),
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 7 * 86400000),
-    },
-  });
-
-  setAuthCookies(res, accessToken, refreshToken);
-  res.json({
-    success: true,
-    data: { userId: user.id },
-    message: "Login successful",
-  });
+  } catch (error) {
+    return sendAuthServiceError(res, error);
+  }
 };
 
 /* REFRESH */
