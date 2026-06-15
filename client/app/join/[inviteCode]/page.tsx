@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function JoinByInvitePage({ params }: { params: Promise<{ inviteCode: string }> }) {
     const { inviteCode } = use(params);
-    const router = useRouter();
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -21,8 +19,8 @@ export default function JoinByInvitePage({ params }: { params: Promise<{ inviteC
                 } else {
                     window.location.href = `/call/${roomId}`;
                 }
-            } catch (err: any) {
-                setError(err.message || "Failed to join meeting");
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : "Failed to join meeting");
             }
         }
         join();

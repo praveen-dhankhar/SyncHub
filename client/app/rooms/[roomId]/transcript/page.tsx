@@ -37,8 +37,8 @@ export default function TranscriptPage({ params }: { params: Promise<{ roomId: s
             try {
                 const transcriptData = await apiRequest(`/rooms/${roomId}/transcript${suffix}`, undefined, "GET");
                 setData(transcriptData);
-            } catch (err: any) {
-                setError(err.message || "Failed to load transcript");
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : "Failed to load transcript");
             } finally {
                 setLoading(false);
             }

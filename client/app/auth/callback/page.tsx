@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/lib/api";
 
 /**
  * OAuth callback page — receives tokens from the URL fragment
@@ -25,7 +24,7 @@ export default function AuthCallbackPage() {
         }
 
         // Store tokens by calling a dedicated endpoint that sets cookies
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
         fetch(`${API_BASE}/auth/set-tokens`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
