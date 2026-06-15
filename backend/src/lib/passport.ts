@@ -10,6 +10,18 @@ function requireEnv(name: string) {
   return value;
 }
 
+function buildOAuthUsername(baseName: string | undefined, provider: string, providerId: string) {
+  const fallback = baseName?.trim() || provider;
+  const cleaned = fallback
+    .normalize("NFKD")
+    .replace(/[^\w.-]+/g, "")
+    .replace(/^[^a-zA-Z0-9]+/, "")
+    .replace(/_{2,}/g, "_")
+    .slice(0, 24) || provider;
+
+  return `${cleaned}-${providerId.slice(-6)}`;
+}
+
 passport.use(
   new GoogleStrategy(
     {
@@ -28,10 +40,11 @@ passport.use(
         });
         console.log("Found user:", user);
         if (!user) {
+          const username = buildOAuthUsername(profile.displayName, "google", profile.id);
           user = await prisma.user.create({
             data: {
               email,
-              username: profile.displayName.replace(/\s+/g, ""),
+              username,
               password: "oauth", // required by your schema
             },
           });
@@ -71,10 +84,11 @@ passport.use(
         });
 
         if (!user) {
+          const username = buildOAuthUsername(profile.username, "discord", profile.id);
           user = await prisma.user.create({
             data: {
               email,
-              username: profile.username,
+              username,
               password: "oauth",
             },
           });
