@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/api";
 import { Activity, Chrome, Lock, Mail, MessageCircle, Radio, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default function AuthForm({ type }: { type: "login" | "register" }) {
   const router = useRouter();
