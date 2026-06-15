@@ -9,10 +9,13 @@ import { useRouter, useSearchParams } from "next/navigation";
  *
  * URL format: /auth/callback?code=xxx
  *
+ * All API calls go through the /api proxy (Next.js rewrites) so cookies
+ * are first-party (same domain as the frontend).
+ *
  * Flow:
  * 1. Extract `code` from URL params
- * 2. POST /auth/exchange-code with the code → backend sets httpOnly cookies
- * 3. GET /auth/me with credentials:include → verify session works
+ * 2. POST /api/auth/exchange-code with the code → backend sets first-party cookies
+ * 3. GET /api/auth/me with credentials:include → verify session works
  * 4. Redirect to /dashboard on success
  */
 export default function AuthCallbackPage() {
@@ -58,13 +61,11 @@ function CallbackContent() {
             return;
         }
 
-        // Exchange the one-time code for tokens (set as httpOnly cookies)
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-        console.log(`[Callback] Exchanging code (${code.slice(0, 8)}...) at ${API_BASE}/auth/exchange-code`);
-
+        // Exchange the one-time code for tokens via the same-origin proxy
+        console.log(`[Callback] Exchanging code (${code.slice(0, 8)}...) at /api/auth/exchange-code`);
         setStatus("Exchanging auth code...");
 
-        fetch(`${API_BASE}/auth/exchange-code`, {
+        fetch("/api/auth/exchange-code", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -78,22 +79,20 @@ function CallbackContent() {
                     throw new Error(data.message || `Exchange failed (${res.status})`);
                 }
 
-                // Cookies should now be set. Verify session by calling /auth/me
+                // Cookies are now set (first-party via proxy). Verify session.
                 setStatus("Verifying session...");
-                console.log("[Callback] Exchange succeeded. Calling /auth/me to verify session...");
+                console.log("[Callback] Exchange succeeded. Calling /api/auth/me to verify session...");
 
-                const meRes = await fetch(`${API_BASE}/auth/me`, {
+                const meRes = await fetch("/api/auth/me", {
                     method: "GET",
                     credentials: "include",
                 });
 
                 const meData = await meRes.json().catch(() => ({}));
-                console.log("[Callback] /auth/me response:", meRes.status, meData);
+                console.log("[Callback] /api/auth/me response:", meRes.status, meData);
 
                 if (!meRes.ok) {
                     console.error("[Callback] /auth/me returned non-OK:", meRes.status, meData);
-                    // Session cookie might not have been set properly
-                    // Still redirect to dashboard — page-level auth check will catch it
                     console.warn("[Callback] Proceeding to dashboard despite /auth/me failure");
                 }
 

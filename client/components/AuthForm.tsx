@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/api";
 import { Activity, Chrome, Lock, Mail, MessageCircle, Radio, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+// OAuth initiation goes through the same /api proxy as all other requests
 
 export default function AuthForm({ type }: { type: "login" | "register" }) {
   return (
@@ -68,11 +68,11 @@ function AuthFormContent({ type }: { type: "login" | "register" }) {
   }
 
   const loginWithGoogle = () => {
-    window.location.href = `${API_BASE}/auth/google`;
+    window.location.href = "/api/auth/google";
   };
 
   const loginWithDiscord = () => {
-    window.location.href = `${API_BASE}/auth/discord`;
+    window.location.href = "/api/auth/discord";
   };
 
   return (

@@ -7,18 +7,23 @@ const IS_PROD =
   (process.env.CLIENT_URL || "").startsWith("https://");
 
 /**
- * Cookie options for cross-domain auth (Render backend ↔ Vercel frontend).
+ * Cookie options for auth tokens.
  *
- * - `secure: true`      — required for sameSite "none"; always true in prod
- * - `sameSite: "none"`  — required for cross-origin cookie delivery
+ * With the Next.js rewrite proxy, all API calls go through the same Vercel
+ * domain as the frontend. This makes cookies **first-party**, so we can use
+ * `sameSite: "lax"` (more secure than "none") and don't need special
+ * cross-domain cookie config.
+ *
+ * - `secure: true`      — only sent over HTTPS in production
+ * - `sameSite: "lax"`   — first-party cookies, blocks CSRF from cross-site POSTs
  * - `path: "/"`         — cookies available on all routes
- * - NO explicit `domain` — let the browser scope it to the backend origin
+ * - NO explicit `domain` — scoped to the Vercel domain automatically
  */
 function getCookieOptions(maxAge: number): CookieOptions {
   return {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? "none" : "lax",
+    sameSite: "lax",
     path: "/",
     maxAge,
   };

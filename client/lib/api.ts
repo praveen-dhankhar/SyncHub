@@ -1,4 +1,12 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+// ─── API Client ──────────────────────────────────────────
+// All API requests go through the Next.js rewrite proxy at /api/*
+// which forwards to the Render backend. This makes cookies first-party
+// (same domain as the frontend), avoiding third-party cookie blocking.
+//
+// In production:  /api/auth/me → sync-hub-olive.vercel.app/api/auth/me → <render>/auth/me
+// In local dev:   /api/auth/me → localhost:3000/api/auth/me → localhost:5001/auth/me
+
+const API_BASE = "/api";
 
 export async function apiRequest(
   endpoint: string,
@@ -10,7 +18,7 @@ export async function apiRequest(
     headers: {
       "Content-Type": "application/json",
     },
-    credentials: "include", // 🔴 REQUIRED for cookies
+    credentials: "include", // cookies are now first-party, but keep this for safety
     body: method === "GET" ? undefined : JSON.stringify(data),
   });
 
