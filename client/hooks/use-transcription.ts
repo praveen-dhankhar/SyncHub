@@ -1,12 +1,34 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 
 export interface TranscriptEntry {
     speaker: string;
     text: string;
     timestamp: number;
 }
+
+type SpeechRecognitionAlternative = { transcript: string };
+type SpeechRecognitionResult = { isFinal: boolean; 0: SpeechRecognitionAlternative };
+type SpeechRecognitionResultList = { length: number; [index: number]: SpeechRecognitionResult };
+type SpeechRecognitionEvent = { resultIndex: number; results: SpeechRecognitionResultList };
+type SpeechRecognitionErrorEvent = { error: string };
+type SpeechRecognitionLike = {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    maxAlternatives: number;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+};
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+};
 
 /**
  * Live transcription hook using the Web Speech API.
@@ -17,24 +39,17 @@ export function useTranscription() {
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
     const [currentText, setCurrentText] = useState(""); // live partial result
-    const [isSupported, setIsSupported] = useState(true);
-    const recognitionRef = useRef<any>(null);
+    const [isSupported, setIsSupported] = useState(() => Boolean(getSpeechRecognitionCtor()));
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
     const speakerRef = useRef("You");
     const shouldRestartRef = useRef(false);
     const startedAtRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            setIsSupported(false);
-        }
-    }, []);
 
     const startTranscription = useCallback((speaker: string = "You") => {
         // If already running, don't restart
         if (recognitionRef.current) return;
 
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const SpeechRecognition = getSpeechRecognitionCtor();
         if (!SpeechRecognition) {
             console.warn("Speech Recognition not supported");
             setIsSupported(false);
@@ -51,7 +66,7 @@ export function useTranscription() {
         recognition.lang = "en-US";
         recognition.maxAlternatives = 1;
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
             let interim = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const result = event.results[i];
@@ -72,7 +87,7 @@ export function useTranscription() {
             if (interim) setCurrentText(interim);
         };
 
-        recognition.onerror = (event: any) => {
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
             console.warn("Speech recognition error:", event.error);
             // These are non-fatal — auto-restart
             if (event.error === "no-speech" || event.error === "aborted" || event.error === "network") {
@@ -146,4 +161,10 @@ function formatTranscriptTimestamp(ms: number) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+    if (typeof window === "undefined") return null;
+    const speechWindow = window as SpeechWindow;
+    return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 }

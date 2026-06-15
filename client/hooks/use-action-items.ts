@@ -44,8 +44,8 @@ export function useActionItems({ roomId, transcript, isActive, serverItems = [] 
                     setItems(data.items);
                 }
                 lastSentTranscriptRef.current = currentTranscript;
-            } catch (err: any) {
-                setError(err.message || "Action items unavailable");
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : "Action items unavailable");
             } finally {
                 inFlightRef.current = false;
                 setIsLoading(false);
