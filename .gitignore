@@ -4,15 +4,17 @@ node_modules/
 .pnp.js
 
 # Build artifacts
+dist/
+build/
 backend/dist/
 backend/build/
 client/.next/
-oneStudios/.next/
 
-# Environment variables
+# Environment variables (never commit secrets)
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # IDE
 .vscode/
@@ -20,7 +22,10 @@ oneStudios/.next/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
@@ -34,5 +39,4 @@ coverage/
 
 # Misc
 .cache/
-dist/
-build/
+*.tsbuildinfo
