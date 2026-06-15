@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentType, FormEvent, ChangeEvent, useState, useEffect } from "react";
+import { ComponentType, FormEvent, ChangeEvent, useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { Activity, Chrome, Lock, Mail, MessageCircle, Radio, User } from "lucide-react";
@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default function AuthForm({ type }: { type: "login" | "register" }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+      <AuthFormContent type={type} />
+    </Suspense>
+  );
+}
+
+function AuthFormContent({ type }: { type: "login" | "register" }) {
   const router = useRouter();
   const [form, setForm] = useState({
     email: "",

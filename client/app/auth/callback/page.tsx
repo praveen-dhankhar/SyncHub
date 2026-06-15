@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 /**
@@ -10,6 +10,25 @@ import { useRouter, useSearchParams } from "next/navigation";
  * URL format: /auth/callback?code=xxx
  */
 export default function AuthCallbackPage() {
+    return (
+        <Suspense fallback={<CallbackLoading />}>
+            <CallbackContent />
+        </Suspense>
+    );
+}
+
+function CallbackLoading() {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted-foreground text-sm">Signing you in...</p>
+            </div>
+        </div>
+    );
+}
+
+function CallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [error, setError] = useState<string | null>(null);
