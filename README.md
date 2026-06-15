@@ -238,7 +238,7 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
                            │
             ┌──────────────▼──────────────────────┐
             │        EXPRESS BACKEND              │
-            │    (Railway / Docker :5000)          │
+            │    (Railway / Docker :5001)          │
             │                                     │
             │  ┌──────────────────────────┐       │
             │  │  REST API Layer          │       │
@@ -426,7 +426,7 @@ npx prisma migrate deploy
 npm run dev
 ```
 
-The backend will start on `http://localhost:5000`.
+The backend will start on `http://localhost:5001`.
 
 ### 3. Frontend Setup
 
@@ -464,19 +464,19 @@ REFRESH_TOKEN_SECRET="your-refresh-token-secret"
 # ─── Google OAuth ────────────────────────────────────────
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=http://localhost:5000/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:5001/auth/google/callback
 
 # ─── Discord OAuth ───────────────────────────────────────
 DISCORD_CLIENT_ID=your-discord-client-id
 DISCORD_CLIENT_SECRET=your-discord-client-secret
-DISCORD_CALLBACK_URL=http://localhost:5000/auth/discord/callback
+DISCORD_CALLBACK_URL=http://localhost:5001/auth/discord/callback
 
 # ─── Google Gemini AI ────────────────────────────────────
 # Get a free key at https://aistudio.google.com/apikey
 GEMINI_API_KEY=your-gemini-api-key
 
 # ─── Server ──────────────────────────────────────────────
-PORT=5000
+PORT=5001
 CLIENT_URL=http://localhost:3000
 ```
 
@@ -492,7 +492,7 @@ docker compose up --build
 
 # Services:
 #   • Client  → http://localhost:3000
-#   • Backend → http://localhost:5000
+#   • Backend → http://localhost:5001
 ```
 
 ### Individual Service Builds

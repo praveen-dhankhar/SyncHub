@@ -3,7 +3,7 @@
 #
 # Services:
 #   • client   → Next.js frontend (port 3000)
-#   • backend  → Express + WebSocket + mediasoup (port 5000)
+#   • backend  → Express + WebSocket + mediasoup (port 5001)
 #
 # Database: Neon PostgreSQL (cloud-hosted, no local DB needed)
 
@@ -15,7 +15,7 @@ services:
       dockerfile: Dockerfile
     container_name: synchub-backend
     ports:
-      - "5001:5000"
+      - "5001:5001"
     env_file:
       - ./backend/.env
     environment:
