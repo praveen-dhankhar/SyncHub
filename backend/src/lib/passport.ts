@@ -1,5 +1,6 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as DiscordStrategy } from "passport-discord-auth";
 import { prisma } from "./prisma.js";
 
 function requireEnv(name: string) {
@@ -22,6 +23,7 @@ function buildOAuthUsername(baseName: string | undefined, provider: string, prov
   return `${cleaned}-${providerId.slice(-6)}`;
 }
 
+// ─── Google Strategy ─────────────────────────────────────
 passport.use(
   new GoogleStrategy(
     {
@@ -33,35 +35,36 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
-        if (!email) return done(new Error("Email not provided"), false);
-        let user = await prisma.user.findUnique({
-          where: { email },
-        });
-        if (!user) {
-          const username = buildOAuthUsername(profile.displayName, "google", profile.id);
-          user = await prisma.user.create({
-            data: {
-              email,
-              username,
-              password: "oauth", // required by your schema
-            },
-          });
+        console.log(`[OAuth:Google] verify callback — email=${email}, profileId=${profile.id}`);
+
+        if (!email) {
+          console.error("[OAuth:Google] No email in profile");
+          return done(new Error("Email not provided by Google"), false);
         }
 
+        // Upsert: find by email, create if missing, update nothing if exists
+        const username = buildOAuthUsername(profile.displayName, "google", profile.id);
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {}, // don't overwrite anything on existing users
+          create: {
+            email,
+            username,
+            password: "oauth", // placeholder — NOT NULL in schema
+          },
+        });
+
+        console.log(`[OAuth:Google] upsert complete — userId=${user.id}, email=${user.email}`);
         done(null, user);
       } catch (err) {
+        console.error("[OAuth:Google] verify callback error:", err);
         done(err as Error, false);
       }
     }
   )
 );
 
-
-/* =========================
-   DISCORD STRATEGY
-========================= */
-import { Strategy as DiscordStrategy } from "passport-discord-auth";
-
+// ─── Discord Strategy ────────────────────────────────────
 passport.use(
   new DiscordStrategy(
     {
@@ -74,26 +77,29 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.email;
-        if (!email)
+        console.log(`[OAuth:Discord] verify callback — email=${email}, profileId=${profile.id}`);
+
+        if (!email) {
+          console.error("[OAuth:Discord] No email in profile");
           return done(new Error("Discord email missing"), false);
-
-        let user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user) {
-          const username = buildOAuthUsername(profile.username, "discord", profile.id);
-          user = await prisma.user.create({
-            data: {
-              email,
-              username,
-              password: "oauth",
-            },
-          });
         }
 
+        // Upsert: find by email, create if missing, update nothing if exists
+        const username = buildOAuthUsername(profile.username, "discord", profile.id);
+        const user = await prisma.user.upsert({
+          where: { email },
+          update: {}, // don't overwrite anything on existing users
+          create: {
+            email,
+            username,
+            password: "oauth", // placeholder — NOT NULL in schema
+          },
+        });
+
+        console.log(`[OAuth:Discord] upsert complete — userId=${user.id}, email=${user.email}`);
         done(null, user);
       } catch (err) {
+        console.error("[OAuth:Discord] verify callback error:", err);
         done(err as Error, false);
       }
     }
