@@ -13,37 +13,70 @@ import rateLimit from "express-rate-limit";
 
 const app = express();
 
+// Strip trailing slashes so "https://example.com/" matches "https://example.com"
+function normalizeOrigin(url: string) {
+  return url.trim().replace(/\/+$/, "");
+}
+
 function getAllowedOrigins() {
   const rawOrigins = [
     process.env.CLIENT_URL,
     process.env.CLIENT_URLS,
+    // Always include the production Vercel URL and localhost for dev
+    "https://sync-hub-olive.vercel.app",
     "http://localhost:3000",
   ]
     .filter(Boolean)
     .flatMap((value) => String(value).split(","))
-    .map((value) => value.trim())
+    .map((value) => normalizeOrigin(value))
     .filter(Boolean);
 
   return new Set(rawOrigins);
 }
 
 function isAllowedOrigin(origin: string) {
+  const normalized = normalizeOrigin(origin);
   const allowedOrigins = getAllowedOrigins();
 
-  if (allowedOrigins.has(origin)) {
+  if (allowedOrigins.has(normalized)) {
     return true;
   }
 
+  // Also match by protocol + host (strips port differences, etc.)
   try {
-    const url = new URL(origin);
+    const url = new URL(normalized);
     return allowedOrigins.has(`${url.protocol}//${url.host}`);
   } catch {
     return false;
   }
 }
 
-// Trust reverse proxy (Railway, Nginx, etc.) so rate-limit reads real client IP
+// Trust reverse proxy (Railway, Render, Nginx, etc.) so rate-limit reads real client IP
 app.set("trust proxy", 1);
+
+// ─── CORS ────────────────────────────────────────────────
+// MUST be mounted BEFORE all other middleware so OPTIONS preflight
+// always gets the correct Access-Control-* headers.
+app.use(cors({
+  origin(origin, callback) {
+    // Allow requests with no origin (server-to-server, curl, health checks)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    // Reject gracefully — returning `false` sends a CORS-less response
+    // instead of throwing, which would cause a 500 on OPTIONS preflight.
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 // ─── Security Headers ────────────────────────────────────
 // Helmet sets various HTTP headers to help protect the app
@@ -63,22 +96,6 @@ app.use(compression());
 // ─── Body Parsing ────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
-
-// ─── CORS ────────────────────────────────────────────────
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) {
-      return callback(null, true);
-    }
-
-    if (isAllowedOrigin(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`Origin ${origin} is not allowed by Access-Control-Allow-Origin`));
-  },
-  credentials: true,
-}));
 
 // ─── Passport ────────────────────────────────────────────
 app.use(passport.initialize());

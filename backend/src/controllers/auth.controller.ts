@@ -7,7 +7,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../lib/jwt.js";
-import { setAuthCookies } from "../lib/cookies.js";
+import { setAuthCookies, COOKIE_OPTIONS } from "../lib/cookies.js";
 
 type PrismaErrorLike = {
   code?: string;
@@ -203,14 +203,10 @@ export const logout = async (req: Request, res: Response) => {
     });
   }
 
-  const IS_PROD = process.env.NODE_ENV === "production";
-  const cookieOpts = {
-    httpOnly: true,
-    secure: IS_PROD,
-    sameSite: IS_PROD ? "none" as const : "lax" as const,
-  };
-  res.clearCookie("accessToken", cookieOpts);
-  res.clearCookie("refreshToken", cookieOpts);
+  // Reuse the same options that were used to SET the cookies.
+  // clearCookie requires matching path, secure, sameSite, etc.
+  res.clearCookie("accessToken", COOKIE_OPTIONS.accessToken);
+  res.clearCookie("refreshToken", COOKIE_OPTIONS.refreshToken);
 
   res.json({
     success: true,
