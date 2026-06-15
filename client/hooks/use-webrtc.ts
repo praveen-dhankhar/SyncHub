@@ -1,12 +1,14 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/api";
 import { useVirtualBackground, BackgroundMode } from "./use-virtual-background";
 import type { ClientActionItem } from "@/components/ActionItemsTab";
 
 // ─── Constants ──────────────────────────────────────────
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/^http/, "ws");
+const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001").replace(/^http/, "ws");
 
 const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
@@ -468,7 +470,6 @@ export function useWebRTC(roomId: string) {
                 localStreamRef.current = null;
             }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId]); // ONLY re-run when roomId changes
 
     // ── Apply Virtual Background Track Changes ──

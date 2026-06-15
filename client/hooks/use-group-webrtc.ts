@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/api";
 import * as mediasoupClient from "mediasoup-client";
@@ -7,7 +9,7 @@ import { useVirtualBackground, BackgroundMode } from "./use-virtual-background";
 import type { ClientActionItem } from "@/components/ActionItemsTab";
 
 // ─── Constants ──────────────────────────────────────────
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/^http/, "ws");
+const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001").replace(/^http/, "ws");
 
 // ─── Types ──────────────────────────────────────────────
 export type GroupCallState = "idle" | "joining" | "connected" | "disconnected" | "error";

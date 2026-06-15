@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState, useRef } from 'react';
 
 export type BackgroundMode = 'none' | 'blur' | 'image';
