@@ -13,6 +13,35 @@ import rateLimit from "express-rate-limit";
 
 const app = express();
 
+function getAllowedOrigins() {
+  const rawOrigins = [
+    process.env.CLIENT_URL,
+    process.env.CLIENT_URLS,
+    "http://localhost:3000",
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return new Set(rawOrigins);
+}
+
+function isAllowedOrigin(origin: string) {
+  const allowedOrigins = getAllowedOrigins();
+
+  if (allowedOrigins.has(origin)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(origin);
+    return allowedOrigins.has(`${url.protocol}//${url.host}`);
+  } catch {
+    return false;
+  }
+}
+
 // Trust reverse proxy (Railway, Nginx, etc.) so rate-limit reads real client IP
 app.set("trust proxy", 1);
 
@@ -37,7 +66,17 @@ app.use(cookieParser());
 
 // ─── CORS ────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (isAllowedOrigin(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by Access-Control-Allow-Origin`));
+  },
   credentials: true,
 }));
 

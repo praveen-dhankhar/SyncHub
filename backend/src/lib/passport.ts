@@ -2,12 +2,20 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { prisma } from "./prisma.js";
 
+function requireEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL!,
+      clientID: requireEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: requireEnv("GOOGLE_CLIENT_SECRET"),
+      callbackURL: requireEnv("GOOGLE_CALLBACK_URL"),
       // ❌ DO NOT add passReqToCallback
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -46,9 +54,9 @@ import { Strategy as DiscordStrategy } from "passport-discord-auth";
 passport.use(
   new DiscordStrategy(
     {
-      clientId: process.env.DISCORD_CLIENT_ID!,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      callbackUrl: process.env.DISCORD_CALLBACK_URL!,
+      clientId: requireEnv("DISCORD_CLIENT_ID"),
+      clientSecret: requireEnv("DISCORD_CLIENT_SECRET"),
+      callbackUrl: requireEnv("DISCORD_CALLBACK_URL"),
       scope: ["identify", "email"],
       // ❌ DO NOT add passReqToCallback
     },

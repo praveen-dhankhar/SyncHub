@@ -11,6 +11,28 @@ import { oauthSuccess } from "../controllers/oauth.controllers.js";
 
 const router = Router();
 
+function handleOAuthCallback(strategy: "google" | "discord") {
+  return (req: any, res: any, next: any) => {
+    passport.authenticate(strategy, { session: false }, (err: unknown, user: unknown, info: any) => {
+      if (err) {
+        return next(err);
+      }
+
+      if (!user) {
+        const message = info?.message || `${strategy} authentication failed`;
+        return res.status(401).json({
+          success: false,
+          data: null,
+          message,
+        });
+      }
+
+      req.user = user;
+      return oauthSuccess(req, res).catch(next);
+    })(req, res, next);
+  };
+}
+
 router.post("/register", register);
 router.post("/login", login);
 router.post("/refresh", refresh);
@@ -23,8 +45,7 @@ router.get(
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", { session: false }),
-  oauthSuccess
+  handleOAuthCallback("google")
 );
 
 // DISCORD
@@ -35,8 +56,7 @@ router.get(
 
 router.get(
   "/discord/callback",
-  passport.authenticate("discord", { session: false }),
-  oauthSuccess
+  handleOAuthCallback("discord")
 );
 
 

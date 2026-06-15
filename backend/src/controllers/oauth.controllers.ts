@@ -4,18 +4,16 @@ import { setAuthCookies } from "../lib/cookies.js";
 import { hashToken } from "../lib/hash.js";
 import { prisma } from "../lib/prisma.js";
 
-/* random useless function just for commit */
-const doNothingImportant = () => {
-  const random = Math.random();
-  const text = "this function";
-  return `${text} - ${random}`;
-};
-
 export const oauthSuccess = async (req: Request, res: Response) => {
   const user = req.user as any;
 
-  // calling useless function (still useless)
-  doNothingImportant();
+  if (!user?.id) {
+    return res.status(401).json({
+      success: false,
+      data: null,
+      message: "OAuth login failed: missing authenticated user",
+    });
+  }
 
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken(user.id);
