@@ -1,56 +1,94 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 /**
- * OAuth callback page — receives tokens from the URL fragment
- * and stores them by calling the backend to set cookies.
- * 
- * URL format: /auth/callback#access=xxx&refresh=yyy
+ * OAuth callback page — receives a one-time auth code from the query string
+ * and exchanges it for httpOnly cookie tokens via the backend.
+ *
+ * URL format: /auth/callback?code=xxx
  */
 export default function AuthCallbackPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const hash = window.location.hash.substring(1); // remove #
-        const params = new URLSearchParams(hash);
-        const accessToken = params.get("access");
-        const refreshToken = params.get("refresh");
+        const code = searchParams.get("code");
+        const oauthError = searchParams.get("error");
 
-        if (!accessToken || !refreshToken) {
+        // Handle OAuth errors (redirected from backend)
+        if (oauthError) {
+            setError(getErrorMessage(oauthError));
+            setTimeout(() => router.replace("/auth/login"), 3000);
+            return;
+        }
+
+        if (!code) {
             router.replace("/auth/login");
             return;
         }
 
-        // Store tokens by calling a dedicated endpoint that sets cookies
+        // Exchange the one-time code for tokens (set as httpOnly cookies)
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-        fetch(`${API_BASE}/auth/set-tokens`, {
+        fetch(`${API_BASE}/auth/exchange-code`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ accessToken, refreshToken }),
+            body: JSON.stringify({ code }),
         })
             .then((res) => {
                 if (res.ok) {
-                    // Clear tokens from URL for security
+                    // Clear code from URL for security
                     window.history.replaceState(null, "", "/auth/callback");
                     router.replace("/");
                 } else {
-                    router.replace("/auth/login");
+                    return res.json().then((data) => {
+                        setError(data.message || "Authentication failed");
+                        setTimeout(() => router.replace("/auth/login"), 3000);
+                    });
                 }
             })
             .catch(() => {
-                router.replace("/auth/login");
+                setError("Network error — please try again");
+                setTimeout(() => router.replace("/auth/login"), 3000);
             });
-    }, [router]);
+    }, [router, searchParams]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-muted-foreground text-sm">Signing you in...</p>
+                {error ? (
+                    <>
+                        <div className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                            <span className="text-destructive text-lg">✕</span>
+                        </div>
+                        <p className="text-destructive text-sm font-medium">{error}</p>
+                        <p className="text-muted-foreground text-xs">Redirecting to login...</p>
+                    </>
+                ) : (
+                    <>
+                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-muted-foreground text-sm">Signing you in...</p>
+                    </>
+                )}
             </div>
         </div>
     );
+}
+
+function getErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+        case "oauth_denied":
+            return "OAuth access was denied. Please try again.";
+        case "oauth_init_failed":
+            return "Could not connect to the OAuth provider. Please try again.";
+        case "oauth_callback_failed":
+            return "OAuth callback failed. Please try again.";
+        case "oauth_failed":
+            return "Authentication failed. Please try again.";
+        default:
+            return "An unexpected error occurred. Please try again.";
+    }
 }

@@ -34,11 +34,9 @@ passport.use(
       try {
         const email = profile.emails?.[0]?.value;
         if (!email) return done(new Error("Email not provided"), false);
-        console.log("Google profile email:", email);
         let user = await prisma.user.findUnique({
           where: { email },
         });
-        console.log("Found user:", user);
         if (!user) {
           const username = buildOAuthUsername(profile.displayName, "google", profile.id);
           user = await prisma.user.create({
@@ -102,5 +100,15 @@ passport.use(
   )
 );
 
+
+// Required by Passport even with session: false —
+// the initial OAuth redirect calls serializeUser internally.
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id: string, done) => {
+  done(null, { id });
+});
 
 export default passport;

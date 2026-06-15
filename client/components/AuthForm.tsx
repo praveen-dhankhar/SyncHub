@@ -1,7 +1,7 @@
 "use client";
 
-import { ComponentType, FormEvent, ChangeEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { ComponentType, FormEvent, ChangeEvent, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { Activity, Chrome, Lock, Mail, MessageCircle, Radio, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,26 @@ export default function AuthForm({ type }: { type: "login" | "register" }) {
     username: "",
     password: "",
   });
+  const searchParams = useSearchParams();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+
+  // Show OAuth error messages when redirected back from failed OAuth
+  useEffect(() => {
+    const oauthError = searchParams.get("error");
+    if (oauthError) {
+      const messages: Record<string, string> = {
+        oauth_denied: "OAuth access was denied. Please try again.",
+        oauth_init_failed: "Could not connect to the OAuth provider.",
+        oauth_callback_failed: "OAuth callback failed. Please try again.",
+        oauth_failed: "Authentication failed. Please try again.",
+      };
+      setError(messages[oauthError] || "An unexpected error occurred.");
+      // Clean up URL
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [searchParams]);
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
