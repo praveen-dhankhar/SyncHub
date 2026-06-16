@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
 
 type TranscriptRendererProps = {
     transcript: string;
@@ -22,36 +23,68 @@ const LINE_RE = /^\s*(?:\[([^\]]+)\]\s*)?([^:\n]{1,80}):\s*(.+?)\s*$/;
 
 export function TranscriptRenderer({ transcript, highlightStartMs, highlightEndMs, emptyMessage = "No transcript available." }: TranscriptRendererProps) {
     const lines = parseTranscript(transcript);
+    const highlightRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to first highlighted block
+    useEffect(() => {
+        if (highlightRef.current) {
+            highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }, [highlightStartMs, highlightEndMs]);
 
     if (lines.length === 0) {
         return (
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-md border border-[rgb(255_255_255/0.06)] bg-[rgb(255_255_255/0.03)] px-4 py-6 text-center text-sm text-[#8b8b9a]">
                 {emptyMessage}
             </div>
         );
     }
 
+    let firstHighlightFound = false;
+
     return (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
             {lines.map((line) => {
                 const highlighted = isHighlighted(line, highlightStartMs, highlightEndMs);
+                const isFirst = highlighted && !firstHighlightFound;
+                if (isFirst) firstHighlightFound = true;
+
                 return (
                     <div
                         key={line.id}
+                        ref={isFirst ? highlightRef : undefined}
                         className={cn(
-                            "rounded-xl border px-3 py-2 text-sm transition-colors",
+                            "rounded-md px-3.5 py-2.5 text-sm transition-colors",
                             highlighted
-                                ? "border-primary/40 bg-primary/10"
-                                : "border-border bg-muted/20",
+                                ? "bg-[rgb(0_217_245/0.06)] border-l-2 border-l-[#00d9f5] border border-[rgb(0_217_245/0.12)]"
+                                : "bg-[#111115] border border-[rgb(255_255_255/0.06)]",
                         )}
                     >
-                        <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+                        <div className="mb-1 flex items-center gap-3 text-[11px]">
                             {line.timestampLabel && (
-                                <span className="font-mono text-primary">{line.timestampLabel}</span>
+                                <span
+                                    className="text-[#00d9f5] font-medium shrink-0"
+                                    style={{
+                                        fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
+                                        width: "60px",
+                                    }}
+                                >
+                                    {line.timestampLabel}
+                                </span>
                             )}
-                            <span>{line.speaker || "Transcript"}</span>
+                            <span
+                                className="font-medium text-[#f1f1f3]"
+                                style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}
+                            >
+                                {line.speaker || "Transcript"}
+                            </span>
                         </div>
-                        <p className="leading-relaxed text-foreground whitespace-pre-wrap">{line.text}</p>
+                        <p
+                            className="leading-relaxed text-[#8b8b9a] whitespace-pre-wrap"
+                            style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}
+                        >
+                            {line.text}
+                        </p>
                     </div>
                 );
             })}

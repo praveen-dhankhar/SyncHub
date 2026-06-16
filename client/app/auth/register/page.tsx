@@ -1,5 +1,5 @@
-import AuthForm from "@/components/AuthForm";
+import MinimalAuthPage from "@/components/ui/minimal-auth-page";
 
 export default function RegisterPage() {
-  return <AuthForm type="register" />;
+  return <MinimalAuthPage type="register" />;
 }

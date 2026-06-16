@@ -85,52 +85,60 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="mx-4 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-soft backdrop-blur-2xl animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgb(6_6_8/0.7)] backdrop-blur-[40px]">
+            <div className="mx-4 flex max-h-[85vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-[rgb(255_255_255/0.08)] bg-[#111115] shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+                <div className="flex items-center justify-between p-5 border-b border-[rgb(255_255_255/0.06)] shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-ai/30 bg-ai/15">
-                            <Sparkles className="text-ai" size={20} />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgb(167_139_250/0.14)]">
+                            <Sparkles className="text-[#a78bfa]" size={18} />
                         </div>
                         <div>
-                            <h2 className="font-bold text-lg text-foreground">AI Meeting Summary</h2>
-                            <p className="text-xs text-muted-foreground">{duration} · {participantCount} participants</p>
+                            <h2 className="font-medium text-base text-[#f1f1f3]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                                AI Meeting Summary
+                            </h2>
+                            <p className="text-[11px] text-[#8b8b9a]" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
+                                {duration} · {participantCount} participants
+                            </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40" aria-label="Close summary">
-                        <X size={20} />
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg p-2 text-[#8b8b9a] transition-colors hover:bg-[rgb(255_255_255/0.06)] hover:text-[#f1f1f3]"
+                        aria-label="Close summary"
+                    >
+                        <X size={18} />
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5">
                     <Tabs defaultValue="summary" className="space-y-4">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="summary">Summary</TabsTrigger>
-                            <TabsTrigger value="actions">Action Items</TabsTrigger>
-                            <TabsTrigger value="transcript">Transcript</TabsTrigger>
+                        <TabsList className="grid w-full grid-cols-3 bg-[rgb(255_255_255/0.04)] rounded-lg p-0.5">
+                            <TabsTrigger value="summary" className="rounded-md text-xs data-[state=active]:bg-[rgb(167_139_250/0.14)] data-[state=active]:text-[#a78bfa] data-[state=active]:shadow-none">Summary</TabsTrigger>
+                            <TabsTrigger value="actions" className="rounded-md text-xs data-[state=active]:bg-[rgb(167_139_250/0.14)] data-[state=active]:text-[#a78bfa] data-[state=active]:shadow-none">Action Items</TabsTrigger>
+                            <TabsTrigger value="transcript" className="rounded-md text-xs data-[state=active]:bg-[rgb(167_139_250/0.14)] data-[state=active]:text-[#a78bfa] data-[state=active]:shadow-none">Transcript</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="summary" className="mt-0">
                             {!summaryData && !loading && (
                                 <div className="flex flex-col items-center justify-center py-12 gap-4">
-                                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-ai/20 bg-ai/10">
-                                        <Sparkles size={32} className="text-ai" />
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[rgb(167_139_250/0.14)]">
+                                        <Sparkles size={28} className="text-[#a78bfa]" />
                                     </div>
-                                    <p className="text-sm text-muted-foreground text-center max-w-xs">
+                                    <p className="text-sm text-[#8b8b9a] text-center max-w-xs" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
                                         AI will analyze your meeting transcript and generate a structured summary with key points and action items.
                                     </p>
                                     <button
                                         onClick={generateSummary}
                                         disabled={!transcript}
-                                        className="flex items-center gap-2 rounded-xl bg-ai px-6 py-3 font-semibold text-ai-foreground shadow-soft transition-all hover:bg-ai/90 disabled:opacity-30"
+                                        className="flex items-center gap-2 rounded-lg bg-[#a78bfa] px-5 py-2.5 text-sm font-medium text-[#060608] transition-all hover:opacity-90 disabled:opacity-30"
                                     >
-                                        <Sparkles size={18} />
+                                        <Sparkles size={16} />
                                         Generate Summary
                                     </button>
                                     {!transcript && (
-                                        <p className="text-xs text-warning">No transcript available. Speak during the call to build a transcript.</p>
+                                        <p className="text-xs text-[#facc15]">No transcript available. Speak during the call to build a transcript.</p>
                                     )}
                                 </div>
                             )}
@@ -138,11 +146,13 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
                             {loading && (
                                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                                     <div className="relative">
-                                        <Loader2 size={40} className="text-ai animate-spin" />
-                                        <Sparkles size={16} className="absolute -right-1 -top-1 text-ai animate-pulse" />
+                                        <Loader2 size={36} className="text-[#a78bfa] animate-spin" />
+                                        <Sparkles size={14} className="absolute -right-1 -top-1 text-[#a78bfa] animate-pulse" />
                                     </div>
-                                    <p className="text-sm font-medium text-foreground">Analyzing your meeting...</p>
-                                    <p className="text-xs text-muted-foreground">This takes a few seconds</p>
+                                    <p className="text-sm text-[#8b8b9a]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                                        Analyzing your meeting...
+                                    </p>
+                                    <p className="text-xs text-[#8b8b9a]/60">This takes a few seconds</p>
                                 </div>
                             )}
 
@@ -163,21 +173,24 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
 
                 {/* Footer */}
                 {summaryData && (
-                    <div className="p-4 border-t border-border flex items-center justify-between shrink-0">
-                        <p className="text-[10px] text-muted-foreground">Powered by Gemini AI</p>
+                    <div className="p-4 border-t border-[rgb(255_255_255/0.06)] flex items-center justify-between shrink-0">
+                        <p className="text-[10px] text-[#8b8b9a]" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>Powered by Gemini AI</p>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleCopy}
-                                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-all ${copied ? "bg-success/15 text-success" : "bg-muted text-foreground hover:bg-muted/80"}`}
+                                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium transition-all ${copied
+                                    ? "bg-[rgb(88_214_141/0.14)] text-[#58d68d]"
+                                    : "border border-[rgb(255_255_255/0.06)] bg-[rgb(255_255_255/0.03)] text-[#8b8b9a] hover:bg-[rgb(255_255_255/0.06)] hover:text-[#f1f1f3]"
+                                    }`}
                             >
                                 {copied ? <Check size={14} /> : <Copy size={14} />}
-                                {copied ? "Copied!" : "Copy"}
+                                {copied ? "Copied!" : "Copy Markdown"}
                             </button>
                             <button
                                 onClick={handleDownload}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-all"
+                                className="flex items-center gap-1.5 px-4 py-2 bg-[#00d9f5] text-[#060608] rounded-lg text-xs font-medium hover:opacity-90 transition-all"
                             >
-                                <Download size={14} /> Download
+                                <Download size={14} /> Download .md
                             </button>
                         </div>
                     </div>
@@ -190,24 +203,28 @@ export function MeetingSummaryModal({ isOpen, onClose, transcript, duration, par
 function SummaryTabContent({ summaryData }: { summaryData: SummaryData }) {
     return (
         <div className="space-y-5">
+            {/* Overview */}
             <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#8b8b9a]">
                     <FileText size={14} /> Overview
                 </div>
-                        <p className="rounded-xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground">
+                <div className="border-b border-[rgb(255_255_255/0.06)]" />
+                <p className="rounded-lg bg-[rgb(255_255_255/0.03)] border border-[rgb(255_255_255/0.06)] p-4 text-sm leading-relaxed text-[#f1f1f3]">
                     {summaryData.summary}
                 </p>
             </div>
 
+            {/* Key Points */}
             {summaryData.keyPoints.length > 0 && (
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#8b8b9a]">
                         <Target size={14} /> Key Points
                     </div>
+                    <div className="border-b border-[rgb(255_255_255/0.06)]" />
                     <ul className="space-y-1.5">
                         {summaryData.keyPoints.map((point, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">{i + 1}</span>
+                            <li key={i} className="flex items-start gap-2 text-sm text-[#f1f1f3]">
+                                <span className="w-5 h-5 rounded-full bg-[rgb(0_217_245/0.14)] text-[#00d9f5] flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">{i + 1}</span>
                                 {point}
                             </li>
                         ))}
@@ -215,15 +232,17 @@ function SummaryTabContent({ summaryData }: { summaryData: SummaryData }) {
                 </div>
             )}
 
+            {/* Decisions */}
             {summaryData.decisions.length > 0 && (
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-success">
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#58d68d]">
                         <Lightbulb size={14} /> Decisions Made
                     </div>
+                    <div className="border-b border-[rgb(255_255_255/0.06)]" />
                     <ul className="space-y-1.5">
                         {summaryData.decisions.map((dec, i) => (
-                            <li key={i} className="flex items-start gap-2 rounded-lg border border-success/10 bg-success/5 px-3 py-2 text-sm text-foreground">
-                                <CheckCircle size={14} className="mt-0.5 shrink-0 text-success" />
+                            <li key={i} className="flex items-start gap-2 rounded-lg border border-[rgb(88_214_141/0.1)] bg-[rgb(88_214_141/0.05)] px-3 py-2 text-sm text-[#f1f1f3]">
+                                <CheckCircle size={14} className="mt-0.5 shrink-0 text-[#58d68d]" />
                                 {dec}
                             </li>
                         ))}
@@ -237,7 +256,7 @@ function SummaryTabContent({ summaryData }: { summaryData: SummaryData }) {
 function StructuredActionItems({ actionItems, fallbackItems }: { actionItems: ClientActionItem[]; fallbackItems: string[] }) {
     if (actionItems.length === 0 && fallbackItems.length === 0) {
         return (
-            <div className="rounded-xl border border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-lg border border-[rgb(255_255_255/0.06)] bg-[rgb(255_255_255/0.03)] px-4 py-6 text-center text-sm text-[#8b8b9a]">
                 No action items captured.
             </div>
         );
@@ -247,12 +266,12 @@ function StructuredActionItems({ actionItems, fallbackItems }: { actionItems: Cl
         return (
             <ul className="space-y-2">
                 {actionItems.map((item) => (
-                    <li key={item.id} className="flex items-start gap-2 rounded-lg border border-warning/10 bg-warning/5 px-3 py-2 text-sm text-foreground">
-                        <CheckCircle size={14} className="mt-0.5 shrink-0 text-warning" />
+                    <li key={item.id} className="flex items-start gap-2 rounded-lg border border-[rgb(250_204_21/0.1)] bg-[rgb(250_204_21/0.05)] px-3 py-2 text-sm text-[#f1f1f3]">
+                        <CheckCircle size={14} className="mt-0.5 shrink-0 text-[#facc15]" />
                         <div>
                             <p>{item.text}</p>
                             {(item.owner || item.dueDate) && (
-                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                <p className="mt-1 text-[11px] text-[#8b8b9a]" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
                                     {[item.owner ? `Owner: ${item.owner}` : null, item.dueDate ? `Due: ${formatDate(item.dueDate)}` : null].filter(Boolean).join(" · ")}
                                 </p>
                             )}
@@ -266,8 +285,8 @@ function StructuredActionItems({ actionItems, fallbackItems }: { actionItems: Cl
     return (
         <ul className="space-y-1.5">
             {fallbackItems.map((item, i) => (
-                <li key={i} className="flex items-start gap-2 rounded-lg border border-warning/10 bg-warning/5 px-3 py-2 text-sm text-foreground">
-                    <CheckCircle size={14} className="mt-0.5 shrink-0 text-warning" />
+                <li key={i} className="flex items-start gap-2 rounded-lg border border-[rgb(250_204_21/0.1)] bg-[rgb(250_204_21/0.05)] px-3 py-2 text-sm text-[#f1f1f3]">
+                    <CheckCircle size={14} className="mt-0.5 shrink-0 text-[#facc15]" />
                     {item}
                 </li>
             ))}

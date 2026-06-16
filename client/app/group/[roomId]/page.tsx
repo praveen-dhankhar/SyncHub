@@ -15,7 +15,19 @@ import { EmojiReactions } from "@/components/EmojiReactions";
 import { Whiteboard } from "@/components/Whiteboard";
 import { CallThemeSwitcher, useCallTheme } from "@/components/CallThemeSwitcher";
 import { useState, useEffect, useCallback, useRef, use } from "react";
-import { Loader2, Users, Shield, Clock, LayoutGrid, Maximize, UserRound, Share2, Sparkles, PenTool, Lock } from "lucide-react";
+import {
+    ArrowLeft,
+    Copy,
+    LayoutGrid,
+    Loader2,
+    Maximize,
+    PenTool,
+    Share2,
+    Shield,
+    Sparkles,
+    UserRound,
+    Users,
+} from "lucide-react";
 import { apiRequest } from "@/lib/api";
 
 type ViewMode = "gallery" | "speaker";
@@ -70,6 +82,7 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
     const [showWhiteboard, setShowWhiteboard] = useState(false);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [copied, setCopied] = useState(false);
     const lastSuggestTime = useRef(0);
     const fullTranscript = getFullTranscript();
     const actionItemsState = useActionItems({
@@ -130,7 +143,6 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         if (!showChat) setUnreadCount(0);
     };
 
-    // Start transcription from user gesture (required by browsers)
     const ensureTranscription = useCallback(() => {
         if (!isTranscribing && speechSupported) {
             startTranscription(localUsername || "You");
@@ -144,7 +156,6 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
 
     const fetchSuggestions = useCallback(async () => {
         if (loadingSuggestions) return;
-        // Throttle: at most once every 30 seconds
         const now = Date.now();
         if (now - lastSuggestTime.current < 30000) return;
         lastSuggestTime.current = now;
@@ -163,7 +174,6 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         setLoadingSuggestions(false);
     }, [loadingSuggestions, getRecentTranscript, transcript]);
 
-    // Auto-fetch suggestions when new transcript entries come in (throttled)
     useEffect(() => {
         if (transcript.length > 0 && transcript.length % 5 === 0) {
             const timeoutId = window.setTimeout(fetchSuggestions, 0);
@@ -187,7 +197,6 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
             stopRecording();
             sendSignal({ type: "recording-status", isRecording: false });
         } else {
-            // Collect ALL streams: local + all remote peers
             const streams: { stream: MediaStream; label: string }[] = [];
             if (localStream) streams.push({ stream: localStream, label: localUsername || "You" });
             remotePeers.forEach(p => {
@@ -214,12 +223,34 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         window.location.href = "/";
     };
 
+    const copyInviteLink = () => {
+        const link = `${window.location.origin}/group/${roomId}`;
+        navigator.clipboard.writeText(link);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    /* ── Dynamic grid class ── */
+    const totalParticipants = remotePeers.length + 1;
+    const activeSpeaker = remotePeers[0];
+    const presentationPeer = remotePeers.find((p) => p.isScreen);
+    const isPresentationMode = !!presentationPeer;
+
+    const getGridClass = (count: number): string => {
+        if (count <= 1) return "call-grid-1";
+        if (count === 2) return "call-grid-2";
+        if (count <= 4) return `call-grid-${Math.min(count, 4) as 3 | 4}`;
+        if (count <= 6) return `call-grid-${Math.min(count, 6) as 5 | 6}`;
+        if (count <= 9) return `call-grid-${Math.min(count, 9) as 7 | 8 | 9}`;
+        return "call-grid-10";
+    };
+
     // ── Loading State ──
     if (callState === "joining") {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-background gap-4">
-                <Loader2 className="animate-spin text-primary" size={48} />
-                <p className="text-xl font-medium text-foreground animate-pulse">Joining Group Call...</p>
+            <div className="call-room items-center justify-center">
+                <Loader2 className="animate-spin text-[#00d9f5]" size={40} />
+                <p className="mt-4 call-waiting-text">Joining group call…</p>
             </div>
         );
     }
@@ -227,17 +258,17 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
     // ── Error State ──
     if (callState === "error") {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-background gap-4 p-6 text-center">
-                <div className="bg-destructive/10 p-6 rounded-full text-destructive mb-4">
-                    <Users size={64} />
+            <div className="call-room items-center justify-center gap-4 p-6 text-center">
+                <div className="rounded-full bg-[#f5223a]/10 p-6 mb-4">
+                    <Users size={48} className="text-[#f5223a]" />
                 </div>
-                <h1 className="text-2xl font-bold text-foreground">Connection Failed</h1>
-                <p className="text-muted-foreground max-w-sm">
+                <h1 className="text-xl font-semibold text-[#f1f1f3]">Connection Failed</h1>
+                <p className="text-sm text-[#8b8b9a] max-w-sm">
                     {errorMessage || "We couldn't establish a connection to the meeting."}
                 </p>
                 <button
                     onClick={() => (window.location.href = "/")}
-                    className="mt-6 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-all"
+                    className="mt-4 px-5 py-2.5 rounded-lg bg-[#00d9f5] text-[#060608] text-sm font-medium hover:opacity-90 transition-opacity"
                 >
                     Return to Home
                 </button>
@@ -245,150 +276,166 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
         );
     }
 
-    // ── Dynamic grid classes ──
-    const totalParticipants = remotePeers.length + 1;
-    const activeSpeaker = remotePeers[0];
-
-    const presentationPeer = remotePeers.find((p) => p.isScreen);
-    const isPresentationMode = !!presentationPeer;
-
-    const getGridClass = (count: number) => {
-        if (count <= 1) return "grid-cols-1";
-        if (count === 2) return "grid-cols-1 lg:grid-cols-2";
-        if (count <= 4) return "grid-cols-2";
-        if (count <= 6) return "grid-cols-2 lg:grid-cols-3";
-        if (count <= 9) return "grid-cols-3";
-        return "grid-cols-3 lg:grid-cols-4";
-    }
-
     return (
-        <div className={`h-screen ${theme.bgClass} text-foreground flex flex-col overflow-hidden relative`}>
-            {/* ── Header ── */}
-            <header className="sync-surface-strong z-50 flex h-16 shrink-0 items-center justify-between border-b border-border px-4 sm:px-8">
-                <div className="flex items-center gap-3 sm:gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/15">
-                        <Users className="text-primary" size={22} />
-                    </div>
-                    <div className="flex flex-col">
-                        <h1 className="font-bold text-base sm:text-lg leading-tight text-foreground">SyncHub Group</h1>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">#{roomId.slice(0, 8)}</p>
-                    </div>
+        <div className="call-room">
+            {/* ── Header — 52px ── */}
+            <header className="call-header">
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        className="call-header-exit"
+                        onClick={() => { window.location.href = "/"; }}
+                    >
+                        <ArrowLeft size={14} />
+                        Exit
+                    </button>
+
+                    <span className="call-header-room-id hidden sm:inline">
+                        #{roomId.slice(0, 8)}
+                    </span>
+
+                    {isE2EReady && (
+                        <span className="call-header-e2e">
+                            <span className="call-header-e2e-dot" />
+                            E2E
+                        </span>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2 sm:gap-3">
-                    {isRecording && (
-                        <div className="flex items-center gap-2 rounded-full border border-live/30 bg-live/10 px-3 py-1.5">
-                            <div className="h-2 w-2 rounded-full bg-live animate-pulse" />
-                            <span className="text-xs font-bold text-live">REC</span>
-                        </div>
-                    )}
-                    <div className="hidden items-center gap-4 rounded-full border border-border bg-card/60 px-4 py-1.5 md:flex">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                            <Clock size={14} className="text-primary" />
-                            <span>{formatTime(time)}</span>
-                        </div>
-                        <div className="w-px h-3 bg-border" />
-                        <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                            <UserRound size={14} className="text-primary" />
-                            <span>{participantCount}</span>
-                        </div>
-                    </div>
+                <div className="flex items-center gap-2">
+                    <span className="call-header-timer hidden sm:inline">
+                        {formatTime(time)}
+                    </span>
 
-                    {/* E2E badge */}
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${isE2EReady
-                        ? 'bg-success/10 border-success/30 text-success'
-                        : 'bg-card/60 border-border text-muted-foreground'
-                        }`} title={isE2EReady ? 'End-to-end encrypted' : 'Establishing encryption...'}>
-                        <Lock size={12} />
-                        <span className="hidden sm:inline">{isE2EReady ? 'E2E' : '...'}</span>
-                    </div>
+                    {/* Participant count */}
+                    <span className="call-header-room-id hidden md:inline">
+                        <UserRound size={12} className="inline mr-1" />
+                        {participantCount}
+                    </span>
+
+                    {isRecording && (
+                        <span className="call-header-rec">● REC</span>
+                    )}
 
                     <CallThemeSwitcher currentThemeId={theme.id} onSelect={setTheme} />
 
-                    <div className="hidden items-center overflow-hidden rounded-xl border border-border bg-card/60 md:flex">
-                        <button onClick={() => setViewMode("gallery")} className={`p-2 transition-all ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`} title="Gallery View"><LayoutGrid size={16} /></button>
-                        <button onClick={() => setViewMode("speaker")} className={`p-2 transition-all ${viewMode === "speaker" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`} title="Speaker View"><Maximize size={16} /></button>
+                    {/* View mode toggle */}
+                    <div className="hidden md:flex items-center overflow-hidden rounded-lg border border-[rgb(255_255_255/0.06)]">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode("gallery")}
+                            className={`p-1.5 transition-colors ${viewMode === "gallery" ? "bg-[#00d9f5] text-[#060608]" : "text-[#8b8b9a] hover:text-[#f1f1f3]"}`}
+                            title="Gallery View"
+                        >
+                            <LayoutGrid size={14} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode("speaker")}
+                            className={`p-1.5 transition-colors ${viewMode === "speaker" ? "bg-[#00d9f5] text-[#060608]" : "text-[#8b8b9a] hover:text-[#f1f1f3]"}`}
+                            title="Speaker View"
+                        >
+                            <Maximize size={14} />
+                        </button>
                     </div>
 
-                    <button onClick={() => setShowParticipants(!showParticipants)} className="rounded-xl border border-border bg-card/60 p-2 text-foreground transition-all hover:bg-accent" title="Participants"><UserRound size={18} /></button>
+                    <button
+                        type="button"
+                        className="call-header-ghost-btn"
+                        onClick={() => setShowParticipants(!showParticipants)}
+                        title="Participants"
+                    >
+                        <UserRound size={14} />
+                    </button>
 
                     <button
+                        type="button"
+                        className="call-header-ghost-btn"
                         onClick={() => setShowShare(true)}
-                        className="flex items-center gap-1.5 rounded-xl border border-border bg-card/60 px-4 py-2 text-sm font-semibold text-foreground transition-all hover:bg-accent"
-                        title="Invite Participants"
+                        title="Invite"
                     >
-                        <Share2 size={16} />
+                        <Share2 size={14} />
                         <span className="hidden sm:inline">Invite</span>
                     </button>
 
-                    {/* AI Summary button — also starts transcription */}
                     <button
+                        type="button"
+                        className={`call-header-ghost-btn ${isTranscribing ? "active" : ""}`}
                         onClick={handleAIClick}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${isTranscribing
-                            ? 'bg-ai/20 border-ai/40 text-ai'
-                            : 'bg-ai/10 border-ai/20 text-ai'
-                            } hover:bg-ai/20`}
-                        title={isTranscribing ? 'AI Listening — Click for Summary' : 'Start AI — Click to begin listening'}
+                        title="AI Summary"
                     >
-                        {isTranscribing && <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
-                        <Sparkles size={16} />
-                        <span className="hidden sm:inline">{isTranscribing ? 'AI On' : 'AI'}</span>
+                        <Sparkles size={14} />
+                        <span className="hidden sm:inline">AI</span>
                     </button>
 
-                    {/* Whiteboard button */}
                     <button
+                        type="button"
+                        className={`call-header-ghost-btn ${showWhiteboard ? "active" : ""}`}
                         onClick={() => setShowWhiteboard(prev => !prev)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all ${showWhiteboard
-                            ? 'bg-warning/20 border-warning/40 text-warning'
-                            : 'bg-card/60 border-border text-foreground hover:bg-accent'
-                            }`}
                         title="Whiteboard"
                     >
-                        <PenTool size={16} />
+                        <PenTool size={14} />
                         <span className="hidden sm:inline">Board</span>
                     </button>
                 </div>
             </header>
 
-            {/* ── Main Content with Chat Sidebar ── */}
+            {/* ── Main Content ── */}
             <div className="flex-1 flex overflow-hidden">
-                <main className="flex-1 flex flex-col p-3 sm:p-4 md:p-6 overflow-hidden relative">
+                <main className="flex-1 flex flex-col p-3 sm:p-4 overflow-hidden relative">
                     {/* Error Toast */}
                     {errorMessage && (
-                        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100]">
-                            <div className="flex items-center gap-3 rounded-2xl border border-danger/30 bg-danger px-6 py-3 text-danger-foreground shadow-soft">
-                                <Shield size={20} />
-                                <span className="text-sm font-bold">{errorMessage}</span>
-                                <button onClick={() => window.location.reload()} className="ml-2 underline text-xs font-black">Reload</button>
+                        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100]">
+                            <div className="flex items-center gap-3 rounded-lg border border-[#f5223a]/30 bg-[#f5223a] px-5 py-2.5 text-white text-sm font-medium">
+                                <Shield size={16} />
+                                {errorMessage}
+                                <button onClick={() => window.location.reload()} className="ml-2 underline text-xs font-bold">Reload</button>
                             </div>
                         </div>
                     )}
 
                     {/* Remote Recording Notification */}
                     {remoteRecording && (
-                        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-5 duration-300">
-                            <div className="flex items-center gap-3 rounded-2xl border border-live/30 bg-card/90 px-5 py-2.5 shadow-soft backdrop-blur">
-                                <div className="h-2.5 w-2.5 rounded-full bg-live animate-pulse" />
-                                <span className="text-sm font-bold text-live">
-                                    {remoteRecording.recorder} is recording this meeting
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Waiting indicator */}
-                    {remotePeers.length === 0 && (
-                        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                            <div className="flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-1.5 backdrop-blur">
-                                <Users size={14} className="text-primary" />
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase">Waiting for others to join...</span>
+                        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100]">
+                            <div className="call-header-rec gap-2 px-4 py-1.5 text-xs">
+                                ● {remoteRecording.recorder} is recording
                             </div>
                         </div>
                     )}
 
                     {/* ── Video Area ── */}
                     <div className="flex-1 min-h-0 relative">
-                        {isPresentationMode ? (
+                        {remotePeers.length === 0 ? (
+                            /* Waiting state */
+                            <div className="h-full w-full relative flex items-center justify-center">
+                                <div className="call-waiting-bg" aria-hidden />
+                                <div className="call-waiting-card">
+                                    <div className="call-waiting-ring">
+                                        <div className="call-waiting-ring-inner" />
+                                        <div className="call-waiting-ring-outer" />
+                                    </div>
+                                    <p className="call-waiting-text">
+                                        Waiting for others to join
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className="call-waiting-link"
+                                        onClick={copyInviteLink}
+                                    >
+                                        <Copy size={12} />
+                                        {copied
+                                            ? "Copied!"
+                                            : `${typeof window !== "undefined" ? window.location.origin : ""}/group/${roomId.slice(0, 8)}…`}
+                                    </button>
+                                </div>
+
+                                {/* Local PiP */}
+                                <div className="absolute bottom-4 right-4 w-44 sm:w-56 aspect-video z-20">
+                                    <VideoPlayer stream={localStream} label={localUsername} isLocal isMuted={isAudioMuted} isVideoOff={isVideoOff} />
+                                </div>
+                            </div>
+                        ) : isPresentationMode ? (
+                            /* Presentation mode */
                             <div className="h-full flex flex-col gap-3">
                                 <div className="flex-1 min-h-0">
                                     <VideoPlayer stream={presentationPeer.stream} label={`${presentationPeer.userId}'s Screen`} isScreenShare />
@@ -407,7 +454,8 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
                                 </div>
                             </div>
                         ) : viewMode === "gallery" ? (
-                            <div className={`h-full w-full grid gap-3 md:gap-4 ${getGridClass(totalParticipants)} auto-rows-fr`}>
+                            /* Gallery grid */
+                            <div className={`h-full w-full grid gap-3 ${getGridClass(totalParticipants)} auto-rows-fr`}>
                                 <div className="min-h-0">
                                     <VideoPlayer stream={localStream} label={localUsername} isLocal isMuted={isAudioMuted} isVideoOff={isVideoOff} />
                                 </div>
@@ -418,6 +466,7 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
                                 ))}
                             </div>
                         ) : (
+                            /* Speaker view */
                             <div className="h-full flex flex-col gap-3">
                                 <div className="flex-1 min-h-0">
                                     {activeSpeaker ? (
@@ -444,6 +493,7 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
                         )}
                     </div>
 
+                    {/* Bottom spacer for dock */}
                     <div className="h-20 shrink-0" />
 
                     {/* ── Controls ── */}
@@ -468,29 +518,26 @@ export default function GroupCallPage({ params }: { params: Promise<{ roomId: st
 
                     {/* Live Captions Overlay */}
                     {showCaptions && currentText && (
-                        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40 max-w-xl w-[90%] pointer-events-none animate-in fade-in duration-200">
-                            <div className="rounded-2xl bg-foreground/80 px-6 py-3 text-center text-background shadow-soft backdrop-blur-sm">
-                                <p className="text-sm sm:text-base font-medium leading-relaxed">{currentText}</p>
-                            </div>
+                        <div className="call-caption">
+                            <p className="call-caption-text">{currentText}</p>
                         </div>
                     )}
 
                     {callState === "disconnected" && (
-                        <div className="fixed top-24 left-1/2 z-50 -translate-x-1/2 rounded-full bg-danger px-4 py-2 text-sm font-semibold text-danger-foreground shadow-soft animate-in fade-in slide-in-from-top-2">
+                        <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#f5223a] px-4 py-2 text-sm font-semibold text-white">
                             Connection Interrupted
                         </div>
                     )}
                 </main>
 
-                {/* ── Chat Panel — full overlay on mobile, sidebar on desktop ── */}
+                {/* ── Chat Panel ── */}
                 {showChat && (
                     <>
-                        {/* Mobile backdrop */}
                         <div
-                            className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-sm md:hidden"
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
                             onClick={toggleChat}
                         />
-                        <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:w-80 md:shrink-0 md:h-full md:border-l md:border-border animate-in slide-in-from-right-10 duration-300">
+                        <div className="fixed inset-0 z-50 md:relative md:inset-auto md:z-auto md:w-80 md:shrink-0 md:h-full md:border-l md:border-[rgb(255_255_255/0.06)]">
                             <ChatPanel
                                 messages={chatMessages}
                                 onSend={sendChatMessage}

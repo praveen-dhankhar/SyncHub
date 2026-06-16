@@ -40,11 +40,10 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     const [lineWidth, setLineWidth] = useState(3);
 
     const fillBg = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number) => {
-        // Solid background
         ctx.fillStyle = resolveCssColor("--whiteboard-bg");
         ctx.fillRect(0, 0, w, h);
 
-        // Grid lines (professional look)
+        // Grid lines
         ctx.strokeStyle = resolveCssColor("--whiteboard-grid");
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -83,7 +82,6 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
             ctx.stroke();
-            // Removed shadow effects for a cleaner, professional look
         }
     }, []);
 
@@ -95,7 +93,6 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
         fillBg(ctx, rect.width, rect.height);
     }, [fillBg]);
 
-    // Initialize canvas with grid background
     useEffect(() => {
         if (!isOpen) return;
         const canvas = canvasRef.current;
@@ -116,13 +113,11 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
         return () => window.removeEventListener("resize", resize);
     }, [fillBg, isOpen]);
 
-    // Draw incoming remote points
     useEffect(() => {
         if (!incomingDraw) return;
         drawPoint(incomingDraw);
     }, [drawPoint, incomingDraw]);
 
-    // Handle incoming clear
     useEffect(() => {
         if (incomingClear) clearCanvas();
     }, [clearCanvas, incomingClear]);
@@ -172,75 +167,83 @@ export function Whiteboard({ isOpen, onClose, onDraw, onClear, incomingDraw, inc
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 p-3 backdrop-blur-sm animate-in fade-in duration-200 sm:p-6">
-            <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-border shadow-soft" style={{ backgroundColor: "var(--whiteboard-bg)" }}>
-                {/* Toolbar */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/20">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgb(6_6_8/0.7)] p-3 backdrop-blur-[20px] sm:p-6">
+            <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-[rgb(255_255_255/0.06)] shadow-2xl" style={{ backgroundColor: "var(--whiteboard-bg)" }}>
+                {/* ── Floating Toolbar ── */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[rgb(255_255_255/0.06)]" style={{ backgroundColor: "#111115" }}>
                     <div className="flex items-center gap-4 flex-wrap">
-                        <h3 className="text-foreground font-semibold text-sm flex items-center gap-2">
+                        <h3 className="text-[#f1f1f3] font-medium text-sm flex items-center gap-2">
                             Whiteboard
                         </h3>
-                        <div className="w-px h-5 bg-border" />
+                        <div className="w-px h-5 bg-[rgb(255_255_255/0.06)]" />
 
                         {/* Tools */}
-                        <div className="flex items-center bg-muted/40 rounded-lg p-1 gap-1 border border-border/50">
+                        <div className="flex items-center rounded-lg p-1 gap-1 border border-[rgb(255_255_255/0.06)] bg-[rgb(255_255_255/0.03)]">
                             <button
                                 onClick={() => setTool("pen")}
-                                className={`p-1.5 rounded-md transition-all ${tool === "pen" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                                className={`p-1.5 rounded-md transition-all ${tool === "pen" ? "bg-[#00d9f5] text-[#060608]" : "text-[#8b8b9a] hover:text-[#f1f1f3] hover:bg-[rgb(255_255_255/0.06)]"}`}
                                 title="Pen"
                             >
                                 <Pencil size={16} />
                             </button>
                             <button
                                 onClick={() => setTool("eraser")}
-                                className={`p-1.5 rounded-md transition-all ${tool === "eraser" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                                className={`p-1.5 rounded-md transition-all ${tool === "eraser" ? "bg-[#00d9f5] text-[#060608]" : "text-[#8b8b9a] hover:text-[#f1f1f3] hover:bg-[rgb(255_255_255/0.06)]"}`}
                                 title="Eraser"
                             >
                                 <Eraser size={16} />
                             </button>
                         </div>
 
-                        {/* Colors */}
+                        {/* Color swatches — 8 circular */}
                         <div className="flex items-center gap-2">
                             {COLORS.map((c) => (
                                 <button
                                     key={c}
                                     onClick={() => { setColor(c); setTool("pen"); }}
-                                    className={`h-5 w-5 rounded-full border transition-all ${color === c && tool === "pen" ? "scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border opacity-80 hover:opacity-100"}`}
+                                    className={`h-5 w-5 rounded-full border transition-all ${color === c && tool === "pen"
+                                        ? "scale-110 ring-2 ring-[#00d9f5] ring-offset-2 ring-offset-[#111115]"
+                                        : "border-[rgb(255_255_255/0.1)] opacity-80 hover:opacity-100"
+                                        }`}
                                     style={{ backgroundColor: `var(${c})` }}
                                     aria-label={`Select ${c.replace("--wb-ink-", "ink ")} color`}
                                 />
                             ))}
                         </div>
 
-                        <div className="w-px h-5 bg-border hidden sm:block" />
+                        <div className="w-px h-5 bg-[rgb(255_255_255/0.06)] hidden sm:block" />
 
                         {/* Line width */}
-                        <div className="hidden sm:flex items-center gap-2 bg-muted/40 border border-border/50 rounded-lg px-2 py-1">
-                            <button onClick={() => setLineWidth(Math.max(1, lineWidth - 1))} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                        <div className="hidden sm:flex items-center gap-2 border border-[rgb(255_255_255/0.06)] bg-[rgb(255_255_255/0.03)] rounded-lg px-2 py-1">
+                            <button onClick={() => setLineWidth(Math.max(1, lineWidth - 1))} className="text-[#8b8b9a] hover:text-[#f1f1f3] transition-colors p-1">
                                 <Minus size={14} />
                             </button>
                             <div className="flex items-center justify-center w-6">
-                                <div className="rounded-full bg-foreground" style={{ width: `${Math.min(lineWidth * 2, 16)}px`, height: `${Math.min(lineWidth * 2, 16)}px` }} />
+                                <div className="rounded-full bg-[#f1f1f3]" style={{ width: `${Math.min(lineWidth * 2, 16)}px`, height: `${Math.min(lineWidth * 2, 16)}px` }} />
                             </div>
-                            <button onClick={() => setLineWidth(Math.min(20, lineWidth + 1))} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                            <button onClick={() => setLineWidth(Math.min(20, lineWidth + 1))} className="text-[#8b8b9a] hover:text-[#f1f1f3] transition-colors p-1">
                                 <Plus size={14} />
                             </button>
                         </div>
 
-                        <div className="w-px h-5 bg-border hidden sm:block" />
+                        <div className="w-px h-5 bg-[rgb(255_255_255/0.06)] hidden sm:block" />
 
                         {/* Clear */}
                         <button
                             onClick={handleClear}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#f5223a] border border-transparent hover:border-[#f5223a]/20 hover:bg-[#f5223a]/10 transition-all"
                         >
                             <Trash2 size={14} />
                             Clear
                         </button>
                     </div>
 
-                    <button onClick={onClose} className="rounded-lg border border-transparent p-2 text-primary-foreground/70 transition-all hover:border-danger/30 hover:bg-danger/20 hover:text-primary-foreground" title="Close Whiteboard" aria-label="Close whiteboard">
+                    <button
+                        onClick={onClose}
+                        className="rounded-lg border border-transparent p-2 text-[#8b8b9a] transition-all hover:border-[#f5223a]/30 hover:bg-[#f5223a]/10 hover:text-[#f1f1f3]"
+                        title="Close Whiteboard"
+                        aria-label="Close whiteboard"
+                    >
                         <X size={20} />
                     </button>
                 </div>

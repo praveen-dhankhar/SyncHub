@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Montserrat, Playfair_Display, Source_Code_Pro } from "next/font/google";
 import "./globals.css";
 import React from "react";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -10,15 +10,28 @@ export const metadata: Metadata = {
   description: "Secure real-time video meetings, collaboration, and meeting intelligence.",
 };
 
-const bodyFont = Inter({
+const bodyFont = Montserrat({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
 });
 
-const headingFont = Space_Grotesk({
+const headingFont = Playfair_Display({
   subsets: ["latin"],
   variable: "--font-heading",
+  display: "swap",
+});
+
+const displayFont = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  weight: ["700", "800", "900"],
+});
+
+const monoFont = Source_Code_Pro({
+  subsets: ["latin"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -28,8 +41,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={cn(bodyFont.variable, headingFont.variable)}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn(bodyFont.variable, headingFont.variable, displayFont.variable, monoFont.variable)}
+    >
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

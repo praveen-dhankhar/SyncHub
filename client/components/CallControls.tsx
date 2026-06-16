@@ -1,6 +1,17 @@
 "use client";
 
-import { Mic, MicOff, Video, VideoOff, PhoneOff, ScreenShare, MessageSquare, Circle, Subtitles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+    Mic,
+    MicOff,
+    Video,
+    VideoOff,
+    PhoneOff,
+    ScreenShare,
+    MessageSquare,
+    Circle,
+    Subtitles,
+} from "lucide-react";
 import { VirtualBackgroundSelector } from "./VirtualBackgroundSelector";
 import { BackgroundMode } from "@/hooks/use-virtual-background";
 
@@ -41,95 +52,135 @@ export function CallControls({
     onSelectBg,
     onEndCall,
 }: CallControlsProps) {
-    const baseButton = "grid shrink-0 place-items-center rounded-xl border p-3 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:p-3.5";
-    const idleButton = "border-border bg-card/60 text-foreground hover:bg-accent";
-    const activeButton = "border-primary/30 bg-primary text-primary-foreground shadow-signal hover:bg-primary/90";
-    const dangerButton = "border-danger/30 bg-danger text-danger-foreground hover:bg-danger/90";
+    /* ── Auto-hide: 3s inactivity → opacity 0.3 ── */
+    const [dockOpacity, setDockOpacity] = useState(1);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const resetTimer = () => {
+            setDockOpacity(1);
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => setDockOpacity(0.3), 3000);
+        };
+
+        resetTimer();
+        window.addEventListener("mousemove", resetTimer);
+        window.addEventListener("touchstart", resetTimer);
+
+        return () => {
+            window.removeEventListener("mousemove", resetTimer);
+            window.removeEventListener("touchstart", resetTimer);
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, []);
+
+    const btn = (active: boolean) =>
+        `call-dock-btn ${active ? "call-dock-btn-active" : ""}`;
 
     return (
-        <div className="fixed bottom-4 left-1/2 z-50 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-2 overflow-x-auto rounded-2xl border border-border bg-card/80 px-3 py-3 shadow-soft backdrop-blur-2xl animate-in slide-in-from-bottom-6 duration-300 sm:bottom-8 sm:gap-3 sm:px-5">
-            {/* Audio Toggle */}
+        <div
+            className="call-dock"
+            style={{ opacity: dockOpacity }}
+            onMouseEnter={() => setDockOpacity(1)}
+        >
+            {/* Mute */}
             <button
                 onClick={onToggleAudio}
-                className={`${baseButton} ${isAudioMuted ? dangerButton : idleButton}`}
+                className={btn(isAudioMuted)}
                 title={isAudioMuted ? "Unmute Mic" : "Mute Mic"}
                 aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
             >
-                {isAudioMuted ? <MicOff size={18} className="sm:w-5 sm:h-5" /> : <Mic size={18} className="sm:w-5 sm:h-5" />}
+                {isAudioMuted ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
 
-            {/* Video Toggle */}
+            {/* Camera */}
             <button
                 onClick={onToggleVideo}
-                className={`${baseButton} ${isVideoOff ? dangerButton : idleButton}`}
+                className={btn(isVideoOff)}
                 title={isVideoOff ? "Turn Camera On" : "Turn Camera Off"}
                 aria-label={isVideoOff ? "Turn camera on" : "Turn camera off"}
             >
-                {isVideoOff ? <VideoOff size={18} className="sm:w-5 sm:h-5" /> : <Video size={18} className="sm:w-5 sm:h-5" />}
+                {isVideoOff ? <VideoOff size={18} /> : <Video size={18} />}
             </button>
 
             {/* Virtual Background */}
             {onSelectBg && (
-                <VirtualBackgroundSelector currentMode={bgMode} currentUrl={bgUrl} onSelect={onSelectBg} />
+                <VirtualBackgroundSelector
+                    currentMode={bgMode}
+                    currentUrl={bgUrl}
+                    onSelect={onSelectBg}
+                />
             )}
 
-            <div className="w-px h-8 bg-border hidden sm:block mx-1" />
-
             {/* Screen Share */}
-            <button
-                onClick={onToggleScreenShare}
-                className={`${baseButton} ${isScreenSharing ? activeButton : idleButton}`}
-                title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
-                aria-label={isScreenSharing ? "Stop screen sharing" : "Share screen"}
-            >
-                <ScreenShare size={18} className="sm:w-5 sm:h-5" />
-            </button>
-
-            {/* Chat Button */}
-            <button
-                onClick={onToggleChat}
-                className={`${baseButton} ${idleButton} relative`}
-                title="Chat"
-                aria-label="Open meeting sidebar"
-            >
-                <MessageSquare size={18} className="sm:w-5 sm:h-5" />
-                {unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-live text-[9px] font-bold text-live-foreground animate-in zoom-in-50">
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                )}
-            </button>
-
-            {/* Record Button */}
-            <button
-                onClick={onToggleRecording}
-                className={`${baseButton} ${isRecording ? "border-live/30 bg-live text-live-foreground hover:bg-live/90" : idleButton}`}
-                title={isRecording ? "Stop Recording" : "Start Recording"}
-                aria-label={isRecording ? "Stop recording" : "Start recording"}
-            >
-                <Circle size={18} className={`sm:w-5 sm:h-5 ${isRecording ? "fill-current animate-pulse" : ""}`} />
-            </button>
-
-            {/* Captions Button */}
-            {onToggleCaptions && (
+            {onToggleScreenShare && (
                 <button
-                    onClick={onToggleCaptions}
-                    className={`${baseButton} ${isCaptionsOn ? activeButton : idleButton}`}
-                    title={isCaptionsOn ? "Turn Off Captions" : "Turn On Captions"}
-                    aria-label={isCaptionsOn ? "Turn captions off" : "Turn captions on"}
+                    onClick={onToggleScreenShare}
+                    className={btn(!!isScreenSharing)}
+                    title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+                    aria-label={isScreenSharing ? "Stop screen sharing" : "Share screen"}
                 >
-                    <Subtitles size={18} className="sm:w-5 sm:h-5" />
+                    <ScreenShare size={18} />
                 </button>
             )}
 
+            <div className="call-dock-sep" />
+
+            {/* Chat */}
+            {onToggleChat && (
+                <button
+                    onClick={onToggleChat}
+                    className="call-dock-btn"
+                    title="Chat"
+                    aria-label="Open meeting chat"
+                >
+                    <MessageSquare size={18} />
+                    {unreadCount > 0 && (
+                        <span className="call-dock-badge">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                    )}
+                </button>
+            )}
+
+            {/* Record */}
+            {onToggleRecording && (
+                <button
+                    onClick={onToggleRecording}
+                    className={btn(!!isRecording)}
+                    title={isRecording ? "Stop Recording" : "Start Recording"}
+                    aria-label={isRecording ? "Stop recording" : "Start recording"}
+                >
+                    <Circle
+                        size={18}
+                        className={isRecording ? "fill-current" : ""}
+                    />
+                </button>
+            )}
+
+            {/* Captions */}
+            {onToggleCaptions && (
+                <button
+                    onClick={onToggleCaptions}
+                    className={btn(!!isCaptionsOn)}
+                    title={isCaptionsOn ? "Turn Off Captions" : "Turn On Captions"}
+                    aria-label={isCaptionsOn ? "Turn captions off" : "Turn captions on"}
+                >
+                    <Subtitles size={18} />
+                </button>
+            )}
+
+            <div className="call-dock-sep" />
+
+            {/* Leave */}
             <button
                 onClick={onEndCall}
-                className="group flex shrink-0 items-center gap-2 rounded-xl border border-danger/30 bg-danger px-4 py-3 font-bold text-danger-foreground shadow-soft transition-all hover:bg-danger/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:px-5 sm:py-3.5"
+                className="call-dock-btn call-dock-leave"
                 title="Leave Meeting"
                 aria-label="Leave meeting"
             >
-                <PhoneOff size={18} className="sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
-                <span className="hidden md:inline text-sm">Leave</span>
+                <PhoneOff size={18} />
+                <span className="hidden md:inline">Leave</span>
             </button>
         </div>
     );

@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, BarChart3, Brain, Calendar, Loader2, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BarChart3, Brain, Calendar, Loader2, Search, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 
 type AskCitation = {
     roomId: string;
@@ -45,109 +43,185 @@ export default function AskSyncHubPage() {
         }
     };
 
+    const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
+
     return (
-        <div className="min-h-screen bg-background">
-            <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => router.push("/")} className="p-2 rounded-xl hover:bg-muted transition-all text-muted-foreground hover:text-foreground">
-                            <ArrowLeft size={20} />
+        <div className="min-h-screen bg-[var(--bg-void)]">
+            {/* ── Sticky Header ── */}
+            <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[var(--bg-void)]/80 backdrop-blur-xl">
+                <div className="mx-auto flex max-w-[680px] items-center justify-between px-4 py-3 sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => router.push("/dashboard")}
+                            className="rounded-lg p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)]"
+                        >
+                            <ArrowLeft size={18} />
                         </button>
-                        <div>
-                            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                <Brain className="text-primary" size={24} />
-                                Ask SyncHub
-                            </h1>
-                            <p className="text-sm text-muted-foreground">Search your completed meeting history with citations</p>
-                        </div>
+                        <nav className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                            <button
+                                type="button"
+                                onClick={() => router.push("/dashboard")}
+                                className="hover:text-[var(--text-primary)] transition-colors"
+                            >
+                                Analytics
+                            </button>
+                            <span className="text-[var(--text-muted)]/40">/</span>
+                            <span className="text-[var(--text-primary)] font-medium">Ask SyncHub</span>
+                        </nav>
                     </div>
-                    <Button variant="secondary" onClick={() => router.push("/dashboard")} className="gap-2">
-                        <BarChart3 size={16} />
-                        Analytics
-                    </Button>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/dashboard")}
+                        className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+                    >
+                        <BarChart3 size={14} />
+                        <span className="hidden sm:inline">Analytics</span>
+                    </button>
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                <section className="rounded-2xl border border-border bg-card p-5">
+            {/* ── Main Content ── */}
+            <main className="mx-auto max-w-[680px] px-4 py-10 sm:px-6 space-y-6">
+                {/* ── Search Section ── */}
+                <section>
+                    {/* AI badge */}
                     <div className="mb-3 flex items-center gap-2">
-                        <Sparkles size={18} className="text-primary" />
-                        <h2 className="font-bold text-foreground">Question</h2>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--state-ai-dim)] px-2.5 py-1 text-[10px] font-semibold text-[var(--state-ai)]" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
+                            <Sparkles size={10} />
+                            Searches across your meeting history
+                        </span>
                     </div>
-                    <Textarea
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                                event.preventDefault();
-                                void submit();
-                            }
-                        }}
-                        placeholder="What did we decide about the launch plan?"
-                        className="min-h-28 resize-none"
-                        maxLength={1000}
-                    />
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                        <p className="text-xs text-muted-foreground">Answers use only meetings you participated in.</p>
-                        <Button onClick={() => void submit()} disabled={!query.trim() || loading} className="gap-2">
-                            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                            Search
-                        </Button>
+
+                    {/* Search input */}
+                    <div className="relative">
+                        <textarea
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                    e.preventDefault();
+                                    void submit();
+                                }
+                            }}
+                            placeholder="What did we decide about the launch plan?"
+                            className="w-full min-h-[56px] max-h-32 resize-none rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3.5 pr-28 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 outline-none transition-all focus:border-[var(--signal-cyan)] focus:shadow-[0_0_0_3px_rgba(0,217,245,0.1)]"
+                            style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}
+                            maxLength={1000}
+                        />
+
+                        {/* Submit button + shortcut inside input */}
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <span className="hidden sm:inline text-[10px] text-[var(--text-muted)]" style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}>
+                                {isMac ? "⌘" : "Ctrl"} ⏎
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => void submit()}
+                                disabled={!query.trim() || loading}
+                                className="flex items-center gap-1.5 rounded-md bg-[var(--signal-cyan)] px-3 py-1.5 text-xs font-medium text-[var(--bg-void)] transition-all hover:opacity-90 disabled:opacity-30"
+                            >
+                                {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                                {loading ? "..." : "Search"}
+                            </button>
+                        </div>
                     </div>
+
+                    <p className="mt-2 text-[10px] text-[var(--text-muted)]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                        Answers use only meetings you participated in.
+                    </p>
                 </section>
 
+                {/* ── Loading State ── */}
                 {loading && (
-                    <section className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
-                        <Loader2 size={28} className="mx-auto mb-3 animate-spin text-primary" />
-                        <p className="text-sm">Searching your meetings...</p>
+                    <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-8 text-center">
+                        <Loader2 size={24} className="mx-auto mb-3 animate-spin text-[var(--state-ai)]" />
+                        <p className="text-sm text-[var(--text-muted)]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                            Searching your meetings...
+                        </p>
                     </section>
                 )}
 
+                {/* ── Error State ── */}
                 {error && !loading && (
-                    <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
-                        <p className="text-sm font-medium text-destructive">{error}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">This is recoverable. Try again in a moment.</p>
+                    <section className="rounded-lg border border-[#f5223a]/20 bg-[#f5223a]/5 p-5">
+                        <p className="text-sm font-medium text-[#f5223a]">{error}</p>
+                        <p className="mt-1 text-xs text-[var(--text-muted)]">This is recoverable. Try again in a moment.</p>
+                        <button
+                            type="button"
+                            onClick={() => void submit()}
+                            className="mt-3 flex items-center gap-1.5 rounded-md border border-[#f5223a]/20 bg-[#f5223a]/10 px-3 py-1.5 text-xs font-medium text-[#f5223a] transition-colors hover:bg-[#f5223a]/20"
+                        >
+                            Retry
+                        </button>
                     </section>
                 )}
 
+                {/* ── Empty State ── */}
                 {!loading && !error && !result && (
-                    <section className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground">
-                        <Brain size={36} className="mx-auto mb-3 opacity-25" />
-                        <p className="text-sm font-medium">Ask a question to search completed meetings.</p>
-                        <p className="mt-1 text-xs">Meetings become searchable after they end with a transcript.</p>
+                    <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-10 text-center">
+                        <Brain size={36} className="mx-auto mb-3 text-[var(--text-muted)] opacity-25" />
+                        <p className="text-sm font-medium text-[var(--text-muted)]">Ask a question to search completed meetings.</p>
+                        <p className="mt-1 text-[11px] text-[var(--text-muted)]/60">Meetings become searchable after they end with a transcript.</p>
                     </section>
                 )}
 
+                {/* ── Answer Surface ── */}
                 {result && !loading && (
-                    <section className="rounded-2xl border border-border bg-card">
-                        <div className="border-b border-border px-5 py-4">
-                            <h2 className="font-bold text-foreground">Answer</h2>
+                    <section className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] border-l-2 border-l-[var(--state-ai)]">
+                        <div className="border-b border-[var(--border-subtle)] px-5 py-4 flex items-center gap-2">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--state-ai-dim)]">
+                                <Sparkles size={12} className="text-[var(--state-ai)]" />
+                            </div>
+                            <h2 className="text-sm font-medium text-[var(--text-primary)]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                                Answer
+                            </h2>
                         </div>
                         <div className="space-y-5 p-5">
-                            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{result.answer}</p>
+                            <p className="text-sm leading-relaxed text-[var(--text-primary)] whitespace-pre-wrap" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
+                                {result.answer}
+                            </p>
 
                             {result.citations.length > 0 ? (
                                 <div className="space-y-3">
-                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sources</h3>
-                                    <div className="grid gap-3 sm:grid-cols-2">
+                                    <h3
+                                        className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]"
+                                        style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}
+                                    >
+                                        Sources
+                                    </h3>
+                                    <div className="space-y-2">
                                         {result.citations.map((citation, index) => (
                                             <Link
                                                 key={`${citation.roomId}-${citation.chunkStartMs}-${index}`}
                                                 href={citationHref(citation)}
-                                                className="rounded-xl border border-border bg-muted/20 p-4 transition-colors hover:bg-muted/40"
+                                                className="group flex items-start gap-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-void)] p-3.5 transition-colors hover:border-[var(--signal-cyan)]/30"
                                             >
-                                                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                                                    <Calendar size={15} className="text-primary" />
-                                                    {citation.roomName}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="mb-1 flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]">
+                                                        <Calendar size={12} className="text-[var(--signal-cyan)] shrink-0" />
+                                                        {citation.roomName}
+                                                    </div>
+                                                    <p
+                                                        className="mb-1.5 text-[10px] text-[var(--text-muted)]"
+                                                        style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}
+                                                    >
+                                                        {formatRange(citation)}
+                                                    </p>
+                                                    <p className="line-clamp-3 text-xs leading-relaxed text-[var(--text-primary)]">
+                                                        {citation.snippet}
+                                                    </p>
                                                 </div>
-                                                <p className="mb-2 text-xs text-muted-foreground">{formatRange(citation)}</p>
-                                                <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">{citation.snippet}</p>
+                                                <ArrowUpRight
+                                                    size={14}
+                                                    className="mt-0.5 shrink-0 text-[var(--signal-cyan)] opacity-0 transition-opacity group-hover:opacity-100"
+                                                />
                                             </Link>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
-                                <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                                <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-void)] px-4 py-3 text-xs text-[var(--text-muted)]">
                                     No citations were returned for this answer.
                                 </div>
                             )}

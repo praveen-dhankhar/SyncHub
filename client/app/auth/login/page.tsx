@@ -1,5 +1,5 @@
-import AuthForm from "@/components/AuthForm";
+import MinimalAuthPage from "@/components/ui/minimal-auth-page";
 
 export default function LoginPage() {
-  return <AuthForm type="login" />;
+  return <MinimalAuthPage type="login" />;
 }
