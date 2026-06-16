@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   BarChart3,
   Brain,
@@ -27,6 +26,7 @@ import {
   YAxis,
 } from "recharts";
 import { apiRequest } from "@/lib/api";
+import { AppShell } from "@/components/app-shell";
 
 /* ───────────────────────────────────────────────────────── */
 /* Types                                                    */
@@ -162,52 +162,42 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="dash-page flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-8 animate-spin rounded-full border-2 border-brand-cyan border-t-transparent" />
-          <span className="dash-subtitle">Loading analytics…</span>
+      <AppShell>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="size-8 animate-spin rounded-full border-2 border-brand-cyan border-t-transparent" />
+            <span className="dash-subtitle">Loading analytics…</span>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   /* ─── Render ─────────────────────────────────────────── */
 
   return (
-    <div className="dash-page">
-      {/* Header */}
-      <header className="dash-header">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="dash-back-btn"
-              onClick={() => router.push("/")}
-              aria-label="Back to home"
-            >
-              <ArrowLeft className="size-4" />
-            </button>
-            <div>
-              <h1 className="dash-title">Meeting Analytics</h1>
-              <p className="dash-subtitle">
-                Room activity, meeting mix, and recent outcomes
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="dash-ask-btn"
-            onClick={() => router.push("/dashboard/ask")}
-          >
-            <Brain className="size-4" />
-            <span className="hidden sm:inline">Ask SyncHub</span>
-            <ArrowRight className="size-3.5" />
-          </button>
+    <AppShell>
+      {/* Page title bar */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="dash-title">Meeting Analytics</h1>
+          <p className="dash-subtitle">
+            Room activity, meeting mix, and recent outcomes
+          </p>
         </div>
-      </header>
+        <button
+          type="button"
+          className="dash-ask-btn"
+          onClick={() => router.push("/dashboard/ask")}
+        >
+          <Brain className="size-4" />
+          <span className="hidden sm:inline">Ask SyncHub</span>
+          <ArrowRight className="size-3.5" />
+        </button>
+      </div>
 
       {/* Content */}
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 sm:px-6 lg:px-8">
+      <div className="space-y-6">
         {/* ── Metric Cards ────────────────────────────── */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
@@ -325,8 +315,8 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 

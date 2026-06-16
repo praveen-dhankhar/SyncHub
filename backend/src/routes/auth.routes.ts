@@ -124,6 +124,55 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
+// ─── Profile Update ──────────────────────────────────────
+router.post("/profile", protect, async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username || typeof username !== "string" || username.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Username must be at least 2 characters",
+      });
+    }
+
+    const { prisma } = await import("../lib/prisma.js");
+
+    // Check uniqueness
+    const existing = await prisma.user.findUnique({
+      where: { username: username.trim() },
+    });
+
+    if (existing && existing.id !== req.userId) {
+      return res.status(409).json({
+        success: false,
+        data: null,
+        message: "Username is already taken",
+      });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.userId },
+      data: { username: username.trim() },
+      select: { id: true, username: true, email: true, avatar: true, createdAt: true },
+    });
+
+    return res.json({
+      success: true,
+      data: updated,
+      message: "Profile updated",
+    });
+  } catch (error) {
+    console.error(`[Auth:/profile] EXCEPTION:`, error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      message: "Failed to update profile",
+    });
+  }
+});
+
 // Returns the access token so the client can use it for WebSocket auth
 // (cookies are httpOnly and can't be read by JS for cross-origin WS)
 router.get("/ws-token", protect, (req, res) => {
@@ -133,3 +182,4 @@ router.get("/ws-token", protect, (req, res) => {
 });
 
 export default router;
+

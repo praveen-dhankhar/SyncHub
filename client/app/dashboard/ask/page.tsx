@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, ArrowUpRight, BarChart3, Brain, Calendar, Loader2, Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, Brain, Calendar, Loader2, Search, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/api";
+import { AppShell } from "@/components/app-shell";
 
 type AskCitation = {
     roomId: string;
@@ -46,43 +47,8 @@ export default function AskSyncHubPage() {
     const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent);
 
     return (
-        <div className="min-h-screen bg-[var(--bg-void)]">
-            {/* ── Sticky Header ── */}
-            <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[var(--bg-void)]/80 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-[680px] items-center justify-between px-4 py-3 sm:px-6">
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={() => router.push("/dashboard")}
-                            className="rounded-lg p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)]"
-                        >
-                            <ArrowLeft size={18} />
-                        </button>
-                        <nav className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
-                            <button
-                                type="button"
-                                onClick={() => router.push("/dashboard")}
-                                className="hover:text-[var(--text-primary)] transition-colors"
-                            >
-                                Analytics
-                            </button>
-                            <span className="text-[var(--text-muted)]/40">/</span>
-                            <span className="text-[var(--text-primary)] font-medium">Ask SyncHub</span>
-                        </nav>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => router.push("/dashboard")}
-                        className="flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-glass)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
-                    >
-                        <BarChart3 size={14} />
-                        <span className="hidden sm:inline">Analytics</span>
-                    </button>
-                </div>
-            </header>
-
-            {/* ── Main Content ── */}
-            <main className="mx-auto max-w-[680px] px-4 py-10 sm:px-6 space-y-6">
+        <AppShell>
+            <div className="mx-auto max-w-[680px] space-y-6">
                 {/* ── Search Section ── */}
                 <section>
                     {/* AI badge */}
@@ -228,8 +194,8 @@ export default function AskSyncHubPage() {
                         </div>
                     </section>
                 )}
-            </main>
-        </div>
+            </div>
+        </AppShell>
     );
 }
 

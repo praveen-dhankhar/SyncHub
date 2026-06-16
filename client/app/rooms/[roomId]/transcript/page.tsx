@@ -2,9 +2,10 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { TranscriptRenderer } from "@/components/TranscriptRenderer";
+import { AppShell } from "@/components/app-shell";
 
 type TranscriptResponse = {
     roomId: string;
@@ -47,29 +48,18 @@ export default function TranscriptPage({ params }: { params: Promise<{ roomId: s
     }, [roomId, searchParams]);
 
     return (
-        <div className="min-h-screen bg-[var(--bg-void)]">
-            {/* ── Sticky Header ── */}
-            <header className="sticky top-0 z-50 border-b border-[var(--border-subtle)] bg-[var(--bg-void)]/80 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-[720px] items-center gap-3 px-4 py-3 sm:px-6">
-                    <button
-                        type="button"
-                        onClick={() => router.back()}
-                        className="rounded-lg p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-glass)] hover:text-[var(--text-primary)]"
-                    >
-                        <ArrowLeft size={18} />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <h1
-                            className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2 truncate"
-                            style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}
-                        >
-                            <FileText size={16} className="text-[var(--signal-cyan)] shrink-0" />
+        <AppShell>
+            <div className="mx-auto max-w-[720px]">
+                {/* Page header */}
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-border-subtle bg-elevated">
+                        <FileText size={16} className="text-signal-cyan" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="dash-title truncate text-base">
                             {data?.roomName || "Meeting Transcript"}
                         </h1>
-                        <p
-                            className="text-[10px] text-[var(--text-muted)] mt-0.5"
-                            style={{ fontFamily: "var(--font-geist-mono), ui-monospace, monospace" }}
-                        >
+                        <p className="dash-subtitle text-xs">
                             {data?.date
                                 ? new Date(data.date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
                                 : "Read-only transcript"
@@ -77,28 +67,23 @@ export default function TranscriptPage({ params }: { params: Promise<{ roomId: s
                         </p>
                     </div>
                 </div>
-            </header>
 
-            {/* ── Main Content ── */}
-            <main className="mx-auto max-w-[720px] px-4 py-8 sm:px-6">
                 {/* Loading */}
                 {loading && (
-                    <div className="flex items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-10 text-[var(--text-muted)]">
-                        <Loader2 size={20} className="mr-2 animate-spin text-[var(--signal-cyan)]" />
-                        <span className="text-sm" style={{ fontFamily: "var(--font-geist), var(--font-body), ui-sans-serif, system-ui, sans-serif" }}>
-                            Loading transcript...
-                        </span>
+                    <div className="flex items-center justify-center rounded-xl border border-border-subtle bg-elevated p-10 text-text-secondary">
+                        <Loader2 size={20} className="mr-2 animate-spin text-signal-cyan" />
+                        <span className="text-sm">Loading transcript...</span>
                     </div>
                 )}
 
                 {/* Error */}
                 {error && !loading && (
-                    <div className="rounded-lg border border-[#f5223a]/20 bg-[#f5223a]/5 p-5">
-                        <p className="text-sm font-medium text-[#f5223a]">{error}</p>
+                    <div className="rounded-xl border border-brand-red/20 bg-brand-red/5 p-5">
+                        <p className="text-sm font-medium text-brand-red">{error}</p>
                         <button
                             type="button"
                             onClick={() => window.location.reload()}
-                            className="mt-3 flex items-center gap-1.5 rounded-md border border-[#f5223a]/20 bg-[#f5223a]/10 px-3 py-1.5 text-xs font-medium text-[#f5223a] transition-colors hover:bg-[#f5223a]/20"
+                            className="profile-btn-danger mt-3 px-3 py-1.5 text-xs"
                         >
                             Retry
                         </button>
@@ -115,7 +100,7 @@ export default function TranscriptPage({ params }: { params: Promise<{ roomId: s
                         />
                     </section>
                 )}
-            </main>
-        </div>
+            </div>
+        </AppShell>
     );
 }

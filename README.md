@@ -109,6 +109,9 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
 |---------|-------------|
 | **Smart Reply Suggestions** | AI analyzes the live transcript and suggests 3 contextual response options in real time |
 | **Meeting Summary Generation** | One-click post-meeting summary with key points, action items, and decisions extracted |
+| **Action Item Extraction** | Structured extraction of action items with assignees, due dates, and confidence scores from meeting transcripts |
+| **RAG-Powered Meeting Q&A** | Ask citation-grounded questions across your entire meeting history — responses include source references to specific meetings and timestamps |
+| **Transcript Chunking & Embeddings** | Meetings are chunked, embedded (768-dim vectors), and stored for semantic retrieval via pgvector |
 | **Rate-Limited AI Endpoints** | 20 req/min AI limiter to prevent API abuse while keeping the experience smooth |
 
 ### 🔐 Security & Encryption
@@ -134,6 +137,7 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
 |---------|-------------|
 | **Live Captions** | Browser-native Web Speech API transcription — zero cost, zero external API calls |
 | **Running Transcript** | Full meeting transcript maintained with speaker attribution and timestamps |
+| **Post-Meeting Transcript Viewer** | Dedicated `/rooms/:id/transcript` page to review, search, and navigate full meeting transcripts after the call |
 | **AI-Powered Summaries** | Feed the transcript to Gemini for structured summaries at meeting end |
 
 ### 🎨 Customization & UX
@@ -175,6 +179,9 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
 | **Radix UI** | Accessible, unstyled primitives (Dialog, Dropdown, Toast, Tabs, etc.) |
 | **Lucide React** | Beautiful, consistent icon library |
 | **mediasoup-client** | Client-side SFU integration for group calls |
+| **Framer Motion** | Smooth page transitions, scroll animations, and micro-interactions |
+| **Three.js** | 3D wireframe globe and immersive visual elements on the landing page |
+| **D3.js** | Custom data visualizations and analytics charts |
 | **MediaPipe** | Self-hosted ML model for real-time selfie segmentation |
 | **Web Speech API** | Browser-native speech-to-text for live captions |
 | **Web Crypto API** | ECDH + AES-GCM for end-to-end encryption |
@@ -317,7 +324,9 @@ Peer A                    SFU Server                     Peer B
 SyncHub/
 ├── client/                          # Next.js 16 Frontend
 │   ├── app/
-│   │   ├── page.tsx                 # Landing page with hero, features, CTA
+│   │   ├── page.tsx                 # Landing page entry point
+│   │   ├── layout.tsx               # Root layout with theme provider
+│   │   ├── globals.css              # Global styles & design tokens
 │   │   ├── auth/
 │   │   │   ├── login/page.tsx       # Login form (email + OAuth)
 │   │   │   ├── register/page.tsx    # Registration form
@@ -325,28 +334,54 @@ SyncHub/
 │   │   ├── call/[roomId]/page.tsx   # 1:1 video call page
 │   │   ├── group/[roomId]/page.tsx  # Group video call page (SFU)
 │   │   ├── join/[inviteCode]/page.tsx # Invite code join page
-│   │   └── dashboard/page.tsx       # Meeting analytics dashboard
+│   │   ├── dashboard/page.tsx       # Meeting analytics dashboard
+│   │   └── rooms/[roomId]/
+│   │       └── transcript/page.tsx  # Post-meeting transcript viewer
 │   ├── components/
+│   │   ├── landing-page.tsx         # Full landing page with all sections
+│   │   ├── hero.tsx                 # Hero section with animated globe
+│   │   ├── feature-cards.tsx        # Feature showcase cards
+│   │   ├── testimonials.tsx         # Social proof testimonials
+│   │   ├── brand-button.tsx         # Branded CTA button component
+│   │   ├── sections/               # Landing page content sections
+│   │   │   ├── how-it-works.tsx     # Step-by-step how it works
+│   │   │   ├── use-cases.tsx        # Use case showcase
+│   │   │   ├── faq.tsx              # FAQ accordion
+│   │   │   ├── pricing-cta.tsx      # Pricing call-to-action
+│   │   │   └── integrations.tsx     # Integration logos/badges
 │   │   ├── AuthForm.tsx             # Login/Register form with OAuth buttons
 │   │   ├── CallControls.tsx         # Call toolbar (mute, video, share, record)
 │   │   ├── CallThemeSwitcher.tsx    # 11 background themes for calls
 │   │   ├── ChatPanel.tsx            # In-call chat with emoji, images, AI suggestions
 │   │   ├── EmojiReactions.tsx       # Floating animated emoji reactions
 │   │   ├── MeetingSummaryModal.tsx   # AI-generated post-meeting summary
+│   │   ├── ActionItemsTab.tsx       # Extracted action items display & management
+│   │   ├── TranscriptRenderer.tsx   # Formatted transcript display component
 │   │   ├── ParticipantList.tsx      # Grid of participant video tiles
 │   │   ├── RecordingsModal.tsx      # P2P recording management & download
 │   │   ├── ShareDialog.tsx          # Social sharing (WhatsApp, Telegram, etc.)
 │   │   ├── VideoPlayer.tsx          # Individual video tile component
 │   │   ├── VirtualBackgroundSelector.tsx # Background blur/image selector
 │   │   ├── Whiteboard.tsx           # Collaborative drawing canvas
-│   │   └── ui/                      # 50+ Radix UI + shadcn/ui primitives
+│   │   ├── theme-provider.tsx       # Theme context provider
+│   │   ├── theme-toggle.tsx         # Dark/light mode toggle
+│   │   └── ui/                      # 55+ Radix UI + shadcn/ui primitives
+│   │       ├── dotted-surface.tsx   # Animated dotted background surface
+│   │       ├── wireframe-dotted-globe.tsx # 3D wireframe globe (Three.js)
+│   │       ├── particles.tsx        # Particle animation effects
+│   │       ├── minimal-auth-page.tsx # Minimal auth page layout
+│   │       └── ...                  # 50+ more UI primitives
 │   ├── hooks/
 │   │   ├── use-webrtc.ts            # 1:1 WebRTC hook (750+ lines)
 │   │   ├── use-group-webrtc.ts      # Group SFU hook via mediasoup (650+ lines)
 │   │   ├── use-recording.ts         # Canvas-composite recording hook
 │   │   ├── use-transcription.ts     # Web Speech API live captions
 │   │   ├── use-encryption.ts        # ECDH + AES-GCM E2E encryption
-│   │   └── use-virtual-background.ts # MediaPipe selfie segmentation
+│   │   ├── use-virtual-background.ts # MediaPipe selfie segmentation
+│   │   └── use-action-items.ts      # Action items extraction hook
+│   ├── lib/
+│   │   ├── api.ts                   # API client with base URL config
+│   │   └── utils.ts                 # Shared utility functions
 │   ├── Dockerfile                   # Multi-stage production build
 │   └── package.json
 │
@@ -356,17 +391,34 @@ SyncHub/
 │   │   ├── app.ts                   # Express app (middleware, routes, rate limiting)
 │   │   ├── controllers/
 │   │   │   ├── auth.controller.ts   # Register, login, refresh, logout
-│   │   │   ├── oauth.controllers.ts # Google + Discord OAuth success handler
-│   │   │   ├── room.controller.ts   # CRUD rooms, join, leave, end, stats
-│   │   │   ├── ai.controller.ts     # Gemini smart replies + meeting summaries
-│   │   │   └── signalling.controller.ts # WebSocket signaling helpers
+│   │   │   ├── oauth.controllers.ts # Google + Discord OAuth flow + code exchange
+│   │   │   ├── room.controller.ts   # CRUD rooms, join, leave, end, stats, transcript
+│   │   │   └── ai.controller.ts     # Smart replies, summaries, action items, RAG Q&A
+│   │   ├── ai/                      # AI processing pipeline
+│   │   │   ├── gemini.ts            # Gemini client initialization
+│   │   │   ├── summary.ts           # Meeting summary generation
+│   │   │   ├── action-items.ts      # Action item extraction logic
+│   │   │   ├── chunker.ts           # Transcript chunking for embeddings
+│   │   │   ├── embeddings.ts        # 768-dim vector embedding generation
+│   │   │   ├── schemas.ts           # Zod schemas for AI responses
+│   │   │   ├── validation.ts        # AI response validation & parsing
+│   │   │   └── __tests__/           # AI module unit tests
+│   │   ├── services/
+│   │   │   ├── action-items.service.ts # Action items DB service
+│   │   │   ├── rag.service.ts       # RAG retrieval service (semantic search)
+│   │   │   └── room-access.service.ts # Room access control service
 │   │   ├── realtime/
 │   │   │   ├── ws.server.ts         # WebSocket server setup
 │   │   │   ├── router.ts           # Message-type routing for WebSocket
 │   │   │   ├── webrtc.handler.ts    # P2P + SFU signaling handlers (430+ lines)
 │   │   │   └── services/
 │   │   │       ├── room.service.ts  # In-memory room/peer state management
-│   │   │       └── sfu.service.ts   # mediasoup worker, router, transport management
+│   │   │       ├── sfu.service.ts   # mediasoup worker, router, transport management
+│   │   │       └── live-room.service.ts # Live room state tracking
+│   │   ├── routes/
+│   │   │   ├── auth.routes.ts       # Auth + OAuth route definitions
+│   │   │   ├── room.routes.ts       # Room CRUD + transcript routes
+│   │   │   └── ai.routes.ts         # AI endpoint routes
 │   │   ├── middleware/
 │   │   │   └── auth.middleware.ts   # JWT verification middleware
 │   │   └── lib/
@@ -376,8 +428,9 @@ SyncHub/
 │   │       ├── cookies.ts           # httpOnly cookie helpers
 │   │       └── hash.ts              # Token hashing (SHA-256)
 │   ├── prisma/
-│   │   ├── schema.prisma            # Database schema (6 models, 5 enums)
+│   │   ├── schema.prisma            # Database schema (8 models, 5 enums)
 │   │   └── migrations/              # SQL migration history
+│   ├── prisma.config.ts             # Prisma configuration
 │   ├── Dockerfile                   # Multi-stage build (mediasoup C++ deps)
 │   └── package.json
 │
@@ -529,6 +582,7 @@ docker build -t synchub-client \
 | `POST` | `/auth/logout` | Logout & revoke | — (uses cookie) |
 | `GET`  | `/auth/google` | Google OAuth redirect | — |
 | `GET`  | `/auth/discord` | Discord OAuth redirect | — |
+| `POST` | `/auth/exchange-code` | Exchange OAuth one-time code for tokens | `{ code }` |
 | `GET`  | `/auth/me` | Get current user | 🔒 Protected |
 | `GET`  | `/auth/ws-token` | Get token for WebSocket auth | 🔒 Protected |
 
@@ -540,6 +594,7 @@ docker build -t synchub-client \
 | `GET`  | `/rooms` | List user's rooms | Query: `?active=true/false` |
 | `GET`  | `/rooms/stats` | Meeting analytics | 🔒 Protected |
 | `GET`  | `/rooms/:id` | Get room details | 🔒 Protected |
+| `GET`  | `/rooms/:id/transcript` | Get room transcript & summary | 🔒 Protected |
 | `POST` | `/rooms/:id/join` | Join room by ID | 🔒 Protected |
 | `POST` | `/rooms/join/:inviteCode` | Join by invite code | 🔒 Protected |
 | `POST` | `/rooms/:id/leave` | Leave room | 🔒 Protected |
@@ -551,6 +606,8 @@ docker build -t synchub-client \
 |--------|----------|-------------|------|
 | `POST` | `/ai/suggest` | Smart reply suggestions | `{ transcript, lastSpeaker }` |
 | `POST` | `/ai/summary` | Meeting summary | `{ transcript, duration, participantCount }` |
+| `POST` | `/ai/action-items` | Extract structured action items | `{ transcript }` |
+| `POST` | `/ai/ask` | RAG-powered Q&A across meeting history | `{ question }` |
 
 ### Health
 
@@ -599,7 +656,7 @@ All WebSocket messages follow JSON format: `{ type: string, ...payload }`
 
 ## 🗄️ Database Schema
 
-The database consists of **6 models** and **5 enums**, managed by Prisma 7:
+The database consists of **8 models** and **5 enums**, managed by Prisma 7:
 
 ```
 ┌──────────────┐       ┌──────────────────┐       ┌──────────────┐
@@ -612,21 +669,35 @@ The database consists of **6 models** and **5 enums**, managed by Prisma 7:
 │ avatar       │       │ leftAt           │       │ inviteCode   │
 │ createdAt    │       └──────────────────┘       │ hostId ──────│───►User
 └──────┬───────┘                                  │ maxPartic... │
-       │                                          │ scheduledAt  │
-       │       ┌──────────────────┐               │ endedAt      │
-       ├──────►│  RefreshToken    │               └──────────────┘
-       │       ├──────────────────┤                      │
-       │       │ tokenHash        │               ┌──────┴───────┐
-       │       │ expiresAt        │               │              │
-       │       └──────────────────┘        ┌──────┴──┐   ┌───────┴──────┐
-       │                                   │Recording│   │ ChatMessage  │
-       │       ┌──────────────────┐        ├─────────┤   ├──────────────┤
-       └──────►│  Presentation    │        │ filename│   │ content      │
-               ├──────────────────┤        │ duration│   │ type (ENUM)  │
-               │ title            │        │ fileSize│   │ isAI         │
-               │ type (ENUM)      │        │ status  │   └──────────────┘
-               │ isActive         │        └─────────┘
-               └──────────────────┘
+       │                                          │ transcript   │
+       │                                          │ summary      │
+       │                                          │ summaryData  │
+       │                                          │ embeddingSt..│
+       │       ┌──────────────────┐               │ scheduledAt  │
+       ├──────►│  RefreshToken    │               │ endedAt      │
+       │       ├──────────────────┤               └──────────────┘
+       │       │ tokenHash        │                      │
+       │       │ expiresAt        │               ┌──────┼──────────┐
+       │       └──────────────────┘               │      │          │
+       │                                   ┌──────┴──┐   │   ┌──────┴───────┐
+       │                                   │Recording│   │   │ ChatMessage  │
+       │       ┌──────────────────┐        ├─────────┤   │   ├──────────────┤
+       └──────►│  Presentation    │        │ filename│   │   │ content      │
+               ├──────────────────┤        │ duration│   │   │ type (ENUM)  │
+               │ title            │        │ fileSize│   │   │ isAI         │
+               │ type (ENUM)      │        │ status  │   │   └──────────────┘
+               │ isActive         │        └─────────┘   │
+               └──────────────────┘               ┌──────┴───────┐
+                                                  │              │
+                                           ┌──────┴──┐   ┌───────┴──────────┐
+                                           │ActionItem│  │MeetingEmbedding  │
+                                           ├─────────┤   ├──────────────────┤
+                                           │ text    │   │ chunkText        │
+                                           │ owner   │   │ chunkStartMs     │
+                                           │ dueDate │   │ chunkEndMs       │
+                                           │ confid..│   │ primarySpeaker   │
+                                           │ extract.│   │ embedding (768d) │
+                                           └─────────┘   └──────────────────┘
 ```
 
 ### Enums
