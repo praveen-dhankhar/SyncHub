@@ -210,7 +210,7 @@ export class SFUService {
         const consumer = await peer.recvTransport.consume({
             producerId,
             rtpCapabilities,
-            paused: false,
+            paused: true,
         });
 
         peer.consumers.set(consumer.id, consumer);
@@ -224,11 +224,33 @@ export class SFUService {
 
         return {
             id: consumer.id,
+            consumerId: consumer.id,
             producerId: consumer.producerId,
             kind: consumer.kind,
             rtpParameters: consumer.rtpParameters,
             appData: producer.appData,
         };
+    }
+
+    async resumeConsumer(peerId: string, consumerId: string): Promise<void> {
+        const consumer = this.findConsumer(peerId, consumerId);
+        if (!consumer) throw new Error("Consumer not found");
+        await consumer.resume();
+    }
+
+    async setConsumerPreferredLayers(
+        peerId: string,
+        consumerId: string,
+        layers: { spatialLayer?: number; temporalLayer?: number }
+    ): Promise<void> {
+        const consumer = this.findConsumer(peerId, consumerId);
+        if (!consumer) throw new Error("Consumer not found");
+
+        const spatialLayer = Number.isInteger(layers.spatialLayer) ? layers.spatialLayer : undefined;
+        const temporalLayer = Number.isInteger(layers.temporalLayer) ? layers.temporalLayer : undefined;
+        if (spatialLayer === undefined) return;
+
+        await consumer.setPreferredLayers({ spatialLayer, temporalLayer });
     }
 
     getAllProducersForPeer(peerId: string): { producerId: string; kind: string }[] {
@@ -284,6 +306,10 @@ export class SFUService {
         if (peer.sendTransport?.id === transportId) return peer.sendTransport;
         if (peer.recvTransport?.id === transportId) return peer.recvTransport;
         return null;
+    }
+
+    private findConsumer(peerId: string, consumerId: string): mediasoup.types.Consumer | null {
+        return this.peerTransports.get(peerId)?.consumers.get(consumerId) || null;
     }
 }
 

@@ -386,13 +386,34 @@ export function registerWebRtcHandlers(router: {
     void (async () => {
       const data = await sfuService.consume(ctx.roomId!, ctx.peerId, message.producerId, message.rtpCapabilities);
       if (!data) {
-        ctx.ws.send(JSON.stringify({ type: "error", message: "cannot consume" }));
+        ctx.ws.send(JSON.stringify({ type: "error", requestId: message.requestId, producerId: message.producerId, message: "cannot consume" }));
         return;
       }
-      ctx.ws.send(JSON.stringify({ type: "consumed", ...data }));
+      ctx.ws.send(JSON.stringify({ type: "consumed", requestId: message.requestId, ...data }));
     })().catch((e) => {
       console.error("consume failed:", e);
-      ctx.ws.send(JSON.stringify({ type: "error", message: "consume failed" }));
+      ctx.ws.send(JSON.stringify({ type: "error", requestId: message.requestId, producerId: message.producerId, message: "consume failed" }));
+    });
+  });
+
+  router.register("resumeConsumer", (ctx: ConnContext, message: any) => {
+    void (async () => {
+      await sfuService.resumeConsumer(ctx.peerId, message.consumerId);
+    })().catch((e) => {
+      console.error("resumeConsumer failed:", e);
+      ctx.ws.send(JSON.stringify({ type: "error", requestId: message.requestId, consumerId: message.consumerId, message: "resumeConsumer failed" }));
+    });
+  });
+
+  router.register("setConsumerPreferredLayers", (ctx: ConnContext, message: any) => {
+    void (async () => {
+      await sfuService.setConsumerPreferredLayers(ctx.peerId, message.consumerId, {
+        spatialLayer: message.spatialLayer,
+        temporalLayer: message.temporalLayer,
+      });
+    })().catch((e) => {
+      console.error("setConsumerPreferredLayers failed:", e);
+      ctx.ws.send(JSON.stringify({ type: "error", requestId: message.requestId, consumerId: message.consumerId, message: "setConsumerPreferredLayers failed" }));
     });
   });
 

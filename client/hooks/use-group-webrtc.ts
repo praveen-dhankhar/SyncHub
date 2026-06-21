@@ -26,6 +26,50 @@ export interface RemotePeer {
     isVideoOff?: boolean;
 }
 
+type NetworkInformationLike = {
+    effectiveType?: string;
+    saveData?: boolean;
+    addEventListener?: (type: "change", listener: () => void) => void;
+    removeEventListener?: (type: "change", listener: () => void) => void;
+};
+
+type ConsumerRecord = {
+    peerId: string;
+    userId: string;
+    streamKey: string;
+    consumer: mediasoupClient.types.Consumer;
+    producerId: string;
+    isScreen?: boolean;
+};
+
+type PendingConsumeResponse = {
+    resolve: (message: any) => void;
+    reject: (error: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+};
+
+function createRequestId() {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getStreamKey(peerId: string, isScreen?: boolean) {
+    return isScreen ? `${peerId}:screen` : peerId;
+}
+
+function getNetworkConnection(): NetworkInformationLike | undefined {
+    if (typeof navigator === "undefined") return undefined;
+    return (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+}
+
+function getNetworkProfile() {
+    const connection = getNetworkConnection();
+    if (connection?.saveData) return "poor";
+    if (connection?.effectiveType === "slow-2g" || connection?.effectiveType === "2g") return "poor";
+    if (connection?.effectiveType === "3g") return "constrained";
+    return "good";
+}
+
 // ─── Hook ───────────────────────────────────────────────
 export function useGroupWebRTC(roomId: string) {
     const [callState, setCallState] = useState<GroupCallState>("idle");
@@ -77,10 +121,14 @@ export function useGroupWebRTC(roomId: string) {
         }
     }, []);
 
-    // Consumer tracking: consumerId → { peerId, userId, consumer, isScreen }
-    const consumersRef = useRef<
-        Map<string, { peerId: string; userId: string; consumer: mediasoupClient.types.Consumer; isScreen?: boolean }>
-    >(new Map());
+    // Consumer tracking: consumerId → remote consumer metadata
+    const consumersRef = useRef<Map<string, ConsumerRecord>>(new Map());
+    const remoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
+    const remoteStreamMetaRef = useRef<Map<string, { peerId: string; userId: string; isScreen?: boolean }>>(new Map());
+    const remotePeerSignatureRef = useRef("");
+    const pendingConsumeResponsesRef = useRef<Map<string, PendingConsumeResponse>>(new Map());
+    const consumingProducerIdsRef = useRef<Set<string>>(new Set());
+    const layerTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>[]>>(new Map());
     const toggleScreenShareRef = useRef<() => Promise<void>>(null as any);
     // Peer mapping: peerId → { userId, username }
     const peerMapRef = useRef<Map<string, { userId: string; username: string }>>(new Map());
@@ -91,47 +139,139 @@ export function useGroupWebRTC(roomId: string) {
     // Remote peer mute states
     const remoteMuteStatesRef = useRef<Map<string, { isAudioMuted: boolean; isVideoOff: boolean }>>(new Map());
 
-    // ── Rebuild remotePeers state from consumers ──
+    const getTargetSpatialLayer = useCallback((isScreen?: boolean) => {
+        const profile = getNetworkProfile();
+        const cameraCount = Array.from(remoteStreamMetaRef.current.values()).filter((meta) => !meta.isScreen).length;
+
+        if (profile === "poor") return isScreen ? 1 : 0;
+        if (profile === "constrained") return isScreen ? 1 : (cameraCount > 2 ? 0 : 1);
+        return isScreen ? 2 : (cameraCount > 4 ? 1 : 2);
+    }, []);
+
+    const getTargetTemporalLayer = useCallback(() => {
+        return getNetworkProfile() === "poor" ? 0 : 2;
+    }, []);
+
+    const sendPreferredLayers = useCallback((consumerId: string, spatialLayer: number, temporalLayer = getTargetTemporalLayer()) => {
+        send({
+            type: "setConsumerPreferredLayers",
+            consumerId,
+            spatialLayer,
+            temporalLayer,
+        });
+    }, [getTargetTemporalLayer, send]);
+
+    const clearLayerTimers = useCallback((consumerId: string) => {
+        for (const timerId of layerTimersRef.current.get(consumerId) || []) {
+            clearTimeout(timerId);
+        }
+        layerTimersRef.current.delete(consumerId);
+    }, []);
+
+    const scheduleLayerUpgrade = useCallback((consumerId: string, isScreen?: boolean) => {
+        clearLayerTimers(consumerId);
+
+        const firstStepLayer = isScreen ? 1 : Math.min(1, getTargetSpatialLayer(isScreen));
+        const timers = [
+            setTimeout(() => {
+                if (consumersRef.current.has(consumerId)) {
+                    sendPreferredLayers(consumerId, firstStepLayer);
+                }
+            }, isScreen ? 700 : 500),
+            setTimeout(() => {
+                if (consumersRef.current.has(consumerId)) {
+                    sendPreferredLayers(consumerId, getTargetSpatialLayer(isScreen));
+                }
+            }, isScreen ? 1800 : 1500),
+        ];
+
+        layerTimersRef.current.set(consumerId, timers);
+    }, [clearLayerTimers, getTargetSpatialLayer, sendPreferredLayers]);
+
+    const reapplyAdaptiveLayers = useCallback(() => {
+        for (const [consumerId, record] of consumersRef.current.entries()) {
+            if (record.consumer.kind === "video") {
+                sendPreferredLayers(consumerId, getTargetSpatialLayer(record.isScreen));
+            }
+        }
+    }, [getTargetSpatialLayer, sendPreferredLayers]);
+
+    // ── Rebuild remotePeers state from stable MediaStream instances ──
     const rebuildRemotePeers = useCallback(() => {
         if (cleanedUpRef.current) return;
 
-        const cameraStreams = new Map<string, { userId: string; stream: MediaStream }>();
-        const screenStreams = new Map<string, { userId: string; stream: MediaStream }>();
+        const peers: RemotePeer[] = [];
+        const entries = Array.from(remoteStreamsRef.current.entries()).sort(([aKey], [bKey]) => {
+            const aScreen = aKey.endsWith(":screen");
+            const bScreen = bKey.endsWith(":screen");
+            if (aScreen !== bScreen) return aScreen ? 1 : -1;
+            return aKey.localeCompare(bKey);
+        });
 
-        for (const { peerId, userId, consumer, isScreen } of consumersRef.current.values()) {
-            if (isScreen) {
-                const key = `${peerId}:screen`;
-                if (!screenStreams.has(key)) {
-                    screenStreams.set(key, { userId, stream: new MediaStream() });
+        for (const [streamKey, stream] of entries) {
+            const meta = remoteStreamMetaRef.current.get(streamKey);
+            if (!meta || stream.getTracks().length === 0) continue;
+            const muteState = remoteMuteStatesRef.current.get(meta.peerId);
+            peers.push({
+                peerId: meta.isScreen ? streamKey : meta.peerId,
+                userId: meta.userId,
+                stream,
+                isScreen: meta.isScreen,
+                isAudioMuted: meta.isScreen ? undefined : (muteState?.isAudioMuted ?? false),
+                isVideoOff: meta.isScreen ? undefined : (muteState?.isVideoOff ?? false),
+            });
+        }
+
+        const signature = peers.map((peer) => {
+            const trackIds = peer.stream.getTracks().map((track) => `${track.kind}:${track.id}:${track.readyState}`).sort().join(",");
+            return `${peer.peerId}:${peer.userId}:${peer.isScreen ? 1 : 0}:${peer.isAudioMuted ? 1 : 0}:${peer.isVideoOff ? 1 : 0}:${trackIds}`;
+        }).join("|");
+
+        if (signature !== remotePeerSignatureRef.current) {
+            remotePeerSignatureRef.current = signature;
+            setRemotePeers(peers);
+        }
+
+        const cameraPeerCount = Array.from(remoteStreamMetaRef.current.values()).filter((meta) => !meta.isScreen).length;
+        setParticipantCount(cameraPeerCount + 1);
+    }, []);
+
+    const removeRemoteConsumer = useCallback((consumerId: string) => {
+        const record = consumersRef.current.get(consumerId);
+        if (!record) return;
+
+        clearLayerTimers(consumerId);
+        consumingProducerIdsRef.current.delete(record.producerId);
+
+        const stream = remoteStreamsRef.current.get(record.streamKey);
+        if (stream && record.consumer.track) {
+            for (const track of stream.getTracks()) {
+                if (track.id === record.consumer.track.id) {
+                    stream.removeTrack(track);
                 }
-                screenStreams.get(key)!.stream.addTrack(consumer.track);
-            } else {
-                if (!cameraStreams.has(peerId)) {
-                    cameraStreams.set(peerId, { userId, stream: new MediaStream() });
-                }
-                cameraStreams.get(peerId)!.stream.addTrack(consumer.track);
+            }
+            if (stream.getTracks().length === 0) {
+                remoteStreamsRef.current.delete(record.streamKey);
+                remoteStreamMetaRef.current.delete(record.streamKey);
             }
         }
 
-        const peers: RemotePeer[] = [];
-        for (const [peerId, { userId, stream }] of cameraStreams.entries()) {
-            const muteState = remoteMuteStatesRef.current.get(peerId);
-            peers.push({
-                peerId, userId, stream, isScreen: false,
-                isAudioMuted: muteState?.isAudioMuted ?? false,
-                isVideoOff: muteState?.isVideoOff ?? false,
-            });
-        }
-        for (const [key, { userId, stream }] of screenStreams.entries()) {
-            peers.push({ peerId: key, userId, stream, isScreen: true });
-        }
+        consumersRef.current.delete(consumerId);
+        try { record.consumer.close(); } catch { /* ignore */ }
+        rebuildRemotePeers();
+        if (!cleanedUpRef.current) reapplyAdaptiveLayers();
+    }, [clearLayerTimers, rebuildRemotePeers, reapplyAdaptiveLayers]);
 
-        setRemotePeers(peers);
-        setParticipantCount(cameraStreams.size + 1);
+    const waitForConsumeResponse = useCallback((requestId: string) => {
+        return new Promise<any>((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+                pendingConsumeResponsesRef.current.delete(requestId);
+                reject(new Error("consume response timed out"));
+            }, 12_000);
+
+            pendingConsumeResponsesRef.current.set(requestId, { resolve, reject, timeoutId });
+        });
     }, []);
-
-    // ── Consume mutex: serialize consume requests to avoid response mismatch ──
-    const consumeQueueRef = useRef<Promise<void>>(Promise.resolve());
 
     // ── Consume a remote producer ──
     const consumeProducer = useCallback(async (producerId: string, peerId: string, displayName: string) => {
@@ -141,58 +281,79 @@ export function useGroupWebRTC(roomId: string) {
             return;
         }
 
-        // Serialize: chain onto the queue so only one consume request is in-flight at a time
-        consumeQueueRef.current = consumeQueueRef.current.then(async () => {
-            try {
-                console.log(`[GROUP] consumeProducer START: ${producerId.slice(0, 8)} for ${displayName}`);
-                send({ type: "consume", producerId, rtpCapabilities: rtpCapsRef.current });
+        if (consumingProducerIdsRef.current.has(producerId) || Array.from(consumersRef.current.values()).some((record) => record.producerId === producerId)) {
+            return;
+        }
 
-                // Wait for EITHER "consumed" or "error" — prevents hanging promise
-                const res = await new Promise<any>((resolve) => {
-                    const onMsg = (event: MessageEvent) => {
-                        const msg = JSON.parse(event.data);
-                        if (msg.type === "consumed" || msg.type === "error") {
-                            socketRef.current?.removeEventListener("message", onMsg);
-                            resolve(msg);
-                        }
-                    };
-                    socketRef.current?.addEventListener("message", onMsg);
-                });
+        consumingProducerIdsRef.current.add(producerId);
 
-                if (res.type === "error") {
-                    console.warn("[GROUP] consume FAILED:", producerId.slice(0, 8), res.message);
-                    return;
-                }
+        try {
+            console.log(`[GROUP] consumeProducer START: ${producerId.slice(0, 8)} for ${displayName}`);
+            const requestId = createRequestId();
+            const responsePromise = waitForConsumeResponse(requestId);
+            send({ type: "consume", requestId, producerId, rtpCapabilities: rtpCapsRef.current });
+            const res = await responsePromise;
 
-                console.log(`[GROUP] consume OK: kind=${res.kind} producerId=${res.producerId?.slice(0, 8)}`);
-
-                const consumer = await recvTransportRef.current!.consume({
-                    id: res.id,
-                    producerId: res.producerId,
-                    kind: res.kind,
-                    rtpParameters: res.rtpParameters,
-                    appData: res.appData,
-                });
-
-                console.log(`[GROUP] consumer created: id=${consumer.id.slice(0, 8)} kind=${consumer.kind} track=${consumer.track?.readyState}`);
-
-                consumersRef.current.set(consumer.id, {
-                    peerId,
-                    userId: displayName,
-                    consumer,
-                    isScreen: res.appData?.screen
-                });
-                peerMapRef.current.set(peerId, { userId: displayName, username: displayName });
-
-                // Resume consumer (synchronous in mediasoup-client)
-                try { consumer.resume(); } catch { /* ignore */ }
-
-                rebuildRemotePeers();
-            } catch (err) {
-                console.warn("[GROUP] consumeProducer error for", producerId.slice(0, 8), err);
+            if (res.type === "error") {
+                console.warn("[GROUP] consume FAILED:", producerId.slice(0, 8), res.message);
+                return;
             }
-        });
-    }, [rebuildRemotePeers, send]);
+
+            const consumerId = res.consumerId || res.id;
+            console.log(`[GROUP] consume OK: kind=${res.kind} producerId=${res.producerId?.slice(0, 8)}`);
+
+            const consumer = await recvTransportRef.current!.consume({
+                id: consumerId,
+                producerId: res.producerId,
+                kind: res.kind,
+                rtpParameters: res.rtpParameters,
+                appData: res.appData,
+            });
+
+            const isScreen = Boolean(res.appData?.screen);
+            const streamKey = getStreamKey(peerId, isScreen);
+            const stream = remoteStreamsRef.current.get(streamKey) || new MediaStream();
+            if (!remoteStreamsRef.current.has(streamKey)) {
+                remoteStreamsRef.current.set(streamKey, stream);
+            }
+            remoteStreamMetaRef.current.set(streamKey, { peerId, userId: displayName, isScreen });
+
+            if (!stream.getTracks().some((track) => track.id === consumer.track.id)) {
+                if (consumer.kind === "video") consumer.track.contentHint = isScreen ? "detail" : "motion";
+                stream.addTrack(consumer.track);
+            }
+
+            const record: ConsumerRecord = {
+                peerId,
+                userId: displayName,
+                streamKey,
+                consumer,
+                producerId: res.producerId,
+                isScreen,
+            };
+            consumersRef.current.set(consumer.id, record);
+            peerMapRef.current.set(peerId, { userId: displayName, username: displayName });
+
+            consumer.on("transportclose", () => removeRemoteConsumer(consumer.id));
+            consumer.on("trackended", () => removeRemoteConsumer(consumer.id));
+            consumer.track.addEventListener("ended", () => removeRemoteConsumer(consumer.id), { once: true });
+
+            if (consumer.kind === "video") {
+                sendPreferredLayers(consumer.id, 0, 1);
+            }
+
+            send({ type: "resumeConsumer", consumerId: consumer.id });
+            try { consumer.resume(); } catch { /* ignore */ }
+
+            console.log(`[GROUP] consumer created: id=${consumer.id.slice(0, 8)} kind=${consumer.kind} track=${consumer.track?.readyState}`);
+            rebuildRemotePeers();
+            if (consumer.kind === "video") scheduleLayerUpgrade(consumer.id, isScreen);
+        } catch (err) {
+            console.warn("[GROUP] consumeProducer error for", producerId.slice(0, 8), err);
+        } finally {
+            consumingProducerIdsRef.current.delete(producerId);
+        }
+    }, [rebuildRemotePeers, removeRemoteConsumer, scheduleLayerUpgrade, send, sendPreferredLayers, waitForConsumeResponse]);
 
     useEffect(() => {
         if (!roomId) return;
@@ -292,9 +453,7 @@ export function useGroupWebRTC(roomId: string) {
             // --- Consume any queued producers ---
             const pending = [...pendingProducersRef.current];
             pendingProducersRef.current = [];
-            for (const p of pending) {
-                await consumeProducer(p.producerId, p.peerId, p.userId);
-            }
+            await Promise.allSettled(pending.map((p) => consumeProducer(p.producerId, p.peerId, p.userId)));
         }
 
         // ── Main Init ──
@@ -344,6 +503,16 @@ export function useGroupWebRTC(roomId: string) {
                     if (isStale()) return;
                     const msg = JSON.parse(event.data);
 
+                    if (msg.requestId && (msg.type === "consumed" || msg.type === "error")) {
+                        const pending = pendingConsumeResponsesRef.current.get(msg.requestId);
+                        if (pending) {
+                            clearTimeout(pending.timeoutId);
+                            pendingConsumeResponsesRef.current.delete(msg.requestId);
+                            pending.resolve(msg);
+                            return;
+                        }
+                    }
+
                     switch (msg.type) {
                         case "role":
                             setCallState("connected");
@@ -368,15 +537,15 @@ export function useGroupWebRTC(roomId: string) {
 
                         case "existingProducers":
                             console.log(`[GROUP] existingProducers: ${msg.producers?.length} producers, localPeerId=${localPeerIdRef.current?.slice(0, 8)}`);
-                            for (const prod of msg.producers) {
+                            void Promise.allSettled((msg.producers || []).map((prod: any) => {
                                 // Skip own producers (safety guard against race conditions)
                                 if (prod.peerId === localPeerIdRef.current) {
                                     console.log(`[GROUP] SKIPPING own producer: ${prod.producerId?.slice(0, 8)}`);
-                                    continue;
+                                    return Promise.resolve();
                                 }
                                 console.log(`[GROUP] consuming existing: ${prod.producerId?.slice(0, 8)} kind=${prod.kind} from ${prod.username}`);
-                                void consumeProducer(prod.producerId, prod.peerId, prod.username || prod.userId.slice(0, 8));
-                            }
+                                return consumeProducer(prod.producerId, prod.peerId, prod.username || prod.userId.slice(0, 8));
+                            }));
                             break;
 
                         case "newProducer":
@@ -391,20 +560,17 @@ export function useGroupWebRTC(roomId: string) {
 
                         case "producerClosed":
                             // Clean up local consumer for this producer
-                            for (const [id, data] of consumersRef.current.entries()) {
+                            for (const [id, data] of Array.from(consumersRef.current.entries())) {
                                 if (data.consumer.producerId === msg.producerId) {
-                                    data.consumer.close();
-                                    consumersRef.current.delete(id);
+                                    removeRemoteConsumer(id);
                                 }
                             }
-                            rebuildRemotePeers();
                             break;
 
                         case "peer-left":
-                            for (const [id, data] of consumersRef.current.entries()) {
+                            for (const [id, data] of Array.from(consumersRef.current.entries())) {
                                 if (data.peerId === msg.peerId) {
-                                    data.consumer.close();
-                                    consumersRef.current.delete(id);
+                                    removeRemoteConsumer(id);
                                 }
                             }
                             peerMapRef.current.delete(msg.peerId);
@@ -497,12 +663,33 @@ export function useGroupWebRTC(roomId: string) {
 
         init();
 
+        const connection = getNetworkConnection();
+        connection?.addEventListener?.("change", reapplyAdaptiveLayers);
         const consumers = consumersRef.current;
+        const pendingConsumeResponses = pendingConsumeResponsesRef.current;
+        const remoteStreams = remoteStreamsRef.current;
+        const remoteStreamMeta = remoteStreamMetaRef.current;
+        const consumingProducerIds = consumingProducerIdsRef.current;
+        const layerTimers = layerTimersRef.current;
 
         return () => {
             cleanedUpRef.current = true;
-            for (const { consumer } of consumers.values()) consumer.close();
+            connection?.removeEventListener?.("change", reapplyAdaptiveLayers);
+            for (const pending of pendingConsumeResponses.values()) {
+                clearTimeout(pending.timeoutId);
+                pending.reject(new Error("call cleanup"));
+            }
+            pendingConsumeResponses.clear();
+            for (const consumerId of Array.from(consumers.keys())) removeRemoteConsumer(consumerId);
             consumers.clear();
+            remoteStreams.clear();
+            remoteStreamMeta.clear();
+            remotePeerSignatureRef.current = "";
+            consumingProducerIds.clear();
+            for (const timerIds of layerTimers.values()) {
+                for (const timerId of timerIds) clearTimeout(timerId);
+            }
+            layerTimers.clear();
             cameraProducerRef.current?.close();
             cameraProducerRef.current = null;
             sendTransportRef.current?.close();
