@@ -4,6 +4,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prebuild": "prisma generate",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test src/ai/__tests__/*.test.ts"

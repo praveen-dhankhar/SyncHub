@@ -3,8 +3,8 @@ import * as mediasoup from "mediasoup";
 // ─── Configuration ──────────────────
 const WORKER_SETTINGS: mediasoup.types.WorkerSettings = {
     logLevel: "warn",
-    rtcMinPort: 10000,
-    rtcMaxPort: 10100,
+    rtcMinPort: readPort("MEDIASOUP_RTC_MIN_PORT", 10000),
+    rtcMaxPort: readPort("MEDIASOUP_RTC_MAX_PORT", 10100),
 };
 
 // Media codecs the router will support.
@@ -20,29 +20,34 @@ const MEDIA_CODECS: mediasoup.types.RtpCodecCapability[] = [
         mimeType: "video/VP8",
         clockRate: 90000,
         parameters: {
-            "x-google-start-bitrate": 1000,
+            "x-google-start-bitrate": 1500,
         },
     },
 ] as any;
 
 // WebRTC transport
-const TRANSPORT_OPTIONS = {
-    listenInfos: [
-        {
-            protocol: "udp" as const,
-            ip: "0.0.0.0",
-            announcedAddress: "127.0.0.1",
-        },
-        {
-            protocol: "tcp" as const,
-            ip: "0.0.0.0",
-            announcedAddress: "127.0.0.1",
-        },
-    ],
-    enableUdp: true,
-    enableTcp: true,
-    preferUdp: true,
-};
+function createTransportOptions(): mediasoup.types.WebRtcTransportOptions {
+    const announcedAddress = getAnnouncedAddress();
+
+    return {
+        listenInfos: [
+            {
+                protocol: "udp",
+                ip: process.env.MEDIASOUP_LISTEN_IP || "0.0.0.0",
+                announcedAddress,
+            },
+            {
+                protocol: "tcp",
+                ip: process.env.MEDIASOUP_LISTEN_IP || "0.0.0.0",
+                announcedAddress,
+            },
+        ],
+        enableUdp: true,
+        enableTcp: true,
+        preferUdp: true,
+        initialAvailableOutgoingBitrate: 2_500_000,
+    };
+}
 
 // ─── Types ─────
 export interface TransportParams {
@@ -108,7 +113,7 @@ export class SFUService {
         const router = this.routers.get(roomId);
         if (!router) throw new Error("Router not found for room " + roomId);
 
-        const transport = await router.createWebRtcTransport(TRANSPORT_OPTIONS);
+        const transport = await router.createWebRtcTransport(createTransportOptions());
 
         if (!this.peerTransports.has(peerId)) {
             this.peerTransports.set(peerId, {
@@ -280,6 +285,32 @@ export class SFUService {
         if (peer.recvTransport?.id === transportId) return peer.recvTransport;
         return null;
     }
+}
+
+function readPort(name: string, fallback: number) {
+    const value = Number.parseInt(process.env[name] || "", 10);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getAnnouncedAddress() {
+    const configured =
+        process.env.MEDIASOUP_ANNOUNCED_ADDRESS ||
+        process.env.PUBLIC_HOSTNAME ||
+        process.env.RENDER_EXTERNAL_HOSTNAME;
+
+    if (configured) {
+        try {
+            return new URL(configured).hostname;
+        } catch {
+            return configured;
+        }
+    }
+
+    if (process.env.NODE_ENV === "production") {
+        console.warn("[SFU] MEDIASOUP_ANNOUNCED_ADDRESS is not set; defaulting to 127.0.0.1. Remote group media will fail unless this is set to the server public IP or hostname.");
+    }
+
+    return "127.0.0.1";
 }
 
 export const sfuService = new SFUService();

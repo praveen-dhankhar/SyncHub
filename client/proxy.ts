@@ -14,7 +14,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // In cross-origin deployment (Vercel + Railway), httpOnly cookies
+  // In cross-origin deployment (Vercel + Render), httpOnly cookies
   // are on the backend domain and invisible to this middleware.
   // Auth protection is handled client-side on each page instead.
   return NextResponse.next();

@@ -51,7 +51,7 @@ function isAllowedOrigin(origin: string) {
   }
 }
 
-// Trust reverse proxy (Railway, Render, Nginx, etc.) so rate-limit reads real client IP
+// Trust reverse proxies (Render, Vercel, Nginx, etc.) so rate-limit reads real client IP.
 app.set("trust proxy", 1);
 
 // ─── CORS ────────────────────────────────────────────────

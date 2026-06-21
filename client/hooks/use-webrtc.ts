@@ -4,12 +4,17 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/api";
+import {
+    applyVideoSenderQuality,
+    buildWebSocketUrl,
+    CALL_MEDIA_CONSTRAINTS,
+    CAMERA_VIDEO_ENCODING,
+    SCREEN_VIDEO_ENCODING,
+} from "@/lib/realtime";
 import { useVirtualBackground, BackgroundMode } from "./use-virtual-background";
 import type { ClientActionItem } from "@/components/ActionItemsTab";
 
 // ─── Constants ──────────────────────────────────────────
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001").replace(/^http/, "ws");
-
 const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -193,7 +198,13 @@ export function useWebRTC(roomId: string) {
 
             // Add local tracks
             if (stream) {
-                stream.getTracks().forEach((track) => newPc.addTrack(track, stream!));
+                stream.getTracks().forEach((track) => {
+                    if (track.kind === "video") track.contentHint = "motion";
+                    const sender = newPc.addTrack(track, stream!);
+                    if (track.kind === "video") {
+                        void applyVideoSenderQuality(sender, CAMERA_VIDEO_ENCODING);
+                    }
+                });
             }
 
             pc = newPc;
@@ -372,20 +383,7 @@ export function useWebRTC(roomId: string) {
                 if (isStale()) return; // Check after async
 
                 // 2. Get camera/mic with optimized quality
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 },
-                        frameRate: { ideal: 30, max: 30 },
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        sampleRate: 48000,
-                        channelCount: 1,
-                    },
-                });
+                stream = await navigator.mediaDevices.getUserMedia(CALL_MEDIA_CONSTRAINTS);
 
                 if (isStale()) {
                     stream.getTracks().forEach(t => t.stop());
@@ -404,8 +402,7 @@ export function useWebRTC(roomId: string) {
                 if (isStale()) return;
 
                 // 4. Connect WebSocket with token in URL
-                const wsUrl = token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
-                socket = new WebSocket(wsUrl);
+                socket = new WebSocket(buildWebSocketUrl(token));
                 socketRef.current = socket;
 
                 socket.onopen = () => {
@@ -489,7 +486,9 @@ export function useWebRTC(roomId: string) {
             // Replace in RTCPeerConnection if active
             const sender = pcRef.current?.getSenders().find(s => s.track?.kind === "video");
             if (sender) {
-                sender.replaceTrack(processedTrack).catch(e => console.error("replaceTrack error:", e));
+                sender.replaceTrack(processedTrack)
+                    .then(() => applyVideoSenderQuality(sender, CAMERA_VIDEO_ENCODING))
+                    .catch(e => console.error("replaceTrack error:", e));
             }
         }
     }, [processedTrack]);
@@ -558,14 +557,16 @@ export function useWebRTC(roomId: string) {
             } else if (videoSender) {
                 // Camera track was stopped — get a fresh one
                 try {
-                    const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    const newStream = await navigator.mediaDevices.getUserMedia({ video: CALL_MEDIA_CONSTRAINTS.video });
                     const newCamTrack = newStream.getVideoTracks()[0];
+                    newCamTrack.contentHint = "motion";
                     cameraTrackRef.current = newCamTrack;
                     // Replace in local stream too
                     const oldTrack = localStreamRef.current?.getVideoTracks()[0];
                     if (oldTrack) localStreamRef.current?.removeTrack(oldTrack);
                     localStreamRef.current?.addTrack(newCamTrack);
                     await videoSender.replaceTrack(newCamTrack);
+                    await applyVideoSenderQuality(videoSender, CAMERA_VIDEO_ENCODING);
                 } catch {
                     console.warn("Could not restore camera after screen share");
                 }
@@ -587,10 +588,14 @@ export function useWebRTC(roomId: string) {
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
                 });
                 const screenTrack = screenStream.getVideoTracks()[0];
+                screenTrack.contentHint = "detail";
                 screenTrackRef.current = screenTrack;
 
                 const videoSender = pc.getSenders().find((s) => s.track?.kind === "video");
-                if (videoSender) await videoSender.replaceTrack(screenTrack);
+                if (videoSender) {
+                    await videoSender.replaceTrack(screenTrack);
+                    await applyVideoSenderQuality(videoSender, SCREEN_VIDEO_ENCODING);
+                }
 
                 setIsScreenSharing(true);
                 // Notify remote peer
@@ -604,15 +609,18 @@ export function useWebRTC(roomId: string) {
                     const camTrack = cameraTrackRef.current;
                     if (camTrack && camTrack.readyState === "live" && videoSender) {
                         await videoSender.replaceTrack(camTrack);
+                        await applyVideoSenderQuality(videoSender, CAMERA_VIDEO_ENCODING);
                     } else if (videoSender) {
                         try {
-                            const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                            const newStream = await navigator.mediaDevices.getUserMedia({ video: CALL_MEDIA_CONSTRAINTS.video });
                             const newCamTrack = newStream.getVideoTracks()[0];
+                            newCamTrack.contentHint = "motion";
                             cameraTrackRef.current = newCamTrack;
                             const oldTrack = localStreamRef.current?.getVideoTracks()[0];
                             if (oldTrack) localStreamRef.current?.removeTrack(oldTrack);
                             localStreamRef.current?.addTrack(newCamTrack);
                             await videoSender.replaceTrack(newCamTrack);
+                            await applyVideoSenderQuality(videoSender, CAMERA_VIDEO_ENCODING);
                         } catch {
                             console.warn("Could not restore camera after screen share");
                         }

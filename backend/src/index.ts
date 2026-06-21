@@ -9,6 +9,7 @@ import { WebSocket } from "ws";
 
 const portValue = process.env.PORT ?? "5001";
 const PORT = Number.parseInt(portValue, 10);
+const HOST = process.env.HOST ?? "0.0.0.0";
 
 if (!Number.isFinite(PORT) || PORT <= 0) {
   console.error(`Invalid PORT value: ${portValue}`);
@@ -48,8 +49,8 @@ wss.on("close", () => clearInterval(heartbeat));
 
 // ─── Start Server ────────────────────────────────────────
 sfuService.init().then(() => {
-  server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST}:${PORT}`);
     console.log(`WebSocket heartbeat: every ${HEARTBEAT_INTERVAL / 1000}s`);
   });
 }).catch((err) => {

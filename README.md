@@ -62,7 +62,7 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
 | Service  | URL |
 |----------|-----|
 | Frontend | Deployed on **Vercel** |
-| Backend  | Deployed on **Railway** |
+| Backend  | Deployed on **Render** |
 
 > _Replace the URLs above with your actual deployment links._
 
@@ -213,7 +213,7 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
 | **Docker** | Multi-stage builds for frontend and backend |
 | **Docker Compose** | Single-command orchestration of all services |
 | **Vercel** | Frontend deployment with edge functions |
-| **Railway** | Backend deployment with managed infrastructure |
+| **Render** | Backend web service deployment |
 
 ---
 
@@ -245,7 +245,7 @@ Unlike off-the-shelf solutions, SyncHub gives you full control over the media pi
                            │
             ┌──────────────▼──────────────────────┐
             │        EXPRESS BACKEND              │
-            │    (Railway / Docker :5001)          │
+            │    (Render / Docker :5001)           │
             │                                     │
             │  ┌──────────────────────────┐       │
             │  │  REST API Layer          │       │
@@ -531,6 +531,27 @@ GEMINI_API_KEY=your-gemini-api-key
 # ─── Server ──────────────────────────────────────────────
 PORT=5001
 CLIENT_URL=http://localhost:3000
+CLIENT_URLS=http://localhost:3000
+
+# ─── WebRTC SFU ──────────────────────────────────────────
+MEDIASOUP_ANNOUNCED_ADDRESS=127.0.0.1
+MEDIASOUP_LISTEN_IP=0.0.0.0
+MEDIASOUP_RTC_MIN_PORT=10000
+MEDIASOUP_RTC_MAX_PORT=10100
+```
+
+For the deployed Vercel + Render setup, use:
+
+```env
+# Vercel client
+NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com
+NEXT_PUBLIC_WS_URL=wss://your-render-service.onrender.com
+
+# Render backend
+CLIENT_URL=https://your-vercel-app.vercel.app
+CLIENT_URLS=https://your-vercel-app.vercel.app
+GOOGLE_CALLBACK_URL=https://your-render-service.onrender.com/auth/google/callback
+DISCORD_CALLBACK_URL=https://your-render-service.onrender.com/auth/discord/callback
 ```
 
 ---
@@ -558,7 +579,8 @@ docker build -t synchub-backend .
 # Frontend (multi-stage with standalone output)
 cd client
 docker build -t synchub-client \
-  --build-arg NEXT_PUBLIC_API_URL=https://your-api.railway.app .
+  --build-arg NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com \
+  --build-arg NEXT_PUBLIC_WS_URL=wss://your-render-service.onrender.com .
 ```
 
 ### Docker Architecture

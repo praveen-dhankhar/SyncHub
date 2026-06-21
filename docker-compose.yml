@@ -16,11 +16,14 @@ services:
     container_name: synchub-backend
     ports:
       - "5001:5001"
+      - "10000-10100:10000-10100/udp"
+      - "10000-10100:10000-10100/tcp"
     env_file:
       - ./backend/.env
     environment:
       - NODE_ENV=production
       - PORT=5001
+      - MEDIASOUP_ANNOUNCED_ADDRESS=${MEDIASOUP_ANNOUNCED_ADDRESS:-127.0.0.1}
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "node", "-e", "fetch('http://localhost:5001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))" ]
@@ -37,7 +40,8 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:5001
+        NEXT_PUBLIC_API_URL: http://backend:5001
+        NEXT_PUBLIC_WS_URL: ws://localhost:5001
     container_name: synchub-client
     ports:
       - "3000:3000"

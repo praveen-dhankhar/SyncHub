@@ -5,11 +5,14 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { apiRequest } from "@/lib/api";
 import * as mediasoupClient from "mediasoup-client";
+import {
+    buildWebSocketUrl,
+    CALL_MEDIA_CONSTRAINTS,
+    GROUP_CAMERA_ENCODINGS,
+    GROUP_SCREEN_ENCODINGS,
+} from "@/lib/realtime";
 import { useVirtualBackground, BackgroundMode } from "./use-virtual-background";
 import type { ClientActionItem } from "@/components/ActionItemsTab";
-
-// ─── Constants ──────────────────────────────────────────
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001").replace(/^http/, "ws");
 
 // ─── Types ──────────────────────────────────────────────
 export type GroupCallState = "idle" | "joining" | "connected" | "disconnected" | "error";
@@ -61,6 +64,7 @@ export function useGroupWebRTC(roomId: string) {
     const sendTransportRef = useRef<mediasoupClient.types.Transport | null>(null);
     const recvTransportRef = useRef<mediasoupClient.types.Transport | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
+    const cameraProducerRef = useRef<mediasoupClient.types.Producer | null>(null);
     const screenProducerRef = useRef<mediasoupClient.types.Producer | null>(null);
     const cleanedUpRef = useRef(false);
     const localPeerIdRef = useRef<string | null>(null);
@@ -275,7 +279,14 @@ export function useGroupWebRTC(roomId: string) {
                 const audio = localStreamRef.current.getAudioTracks()[0];
                 const video = localStreamRef.current.getVideoTracks()[0];
                 if (audio) await sendTransport.produce({ track: audio });
-                if (video) await sendTransport.produce({ track: video });
+                if (video) {
+                    video.contentHint = "motion";
+                    cameraProducerRef.current = await sendTransport.produce({
+                        track: video,
+                        encodings: GROUP_CAMERA_ENCODINGS,
+                        codecOptions: { videoGoogleStartBitrate: 1_500 },
+                    });
+                }
             }
 
             // --- Consume any queued producers ---
@@ -302,20 +313,7 @@ export function useGroupWebRTC(roomId: string) {
                 if (isStale()) return;
 
                 // 2. Get camera/mic with optimized quality
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 },
-                        frameRate: { ideal: 30, max: 30 },
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        sampleRate: 48000,
-                        channelCount: 1,
-                    },
-                });
+                const stream = await navigator.mediaDevices.getUserMedia(CALL_MEDIA_CONSTRAINTS);
 
                 if (isStale()) {
                     stream.getTracks().forEach(t => t.stop());
@@ -333,8 +331,7 @@ export function useGroupWebRTC(roomId: string) {
                 if (isStale()) return;
 
                 // 4. Connect WebSocket with token in URL
-                const wsUrl = token ? `${WS_URL}?token=${encodeURIComponent(token)}` : WS_URL;
-                socket = new WebSocket(wsUrl);
+                socket = new WebSocket(buildWebSocketUrl(token));
                 socketRef.current = socket;
 
                 socket.addEventListener("open", () => {
@@ -500,10 +497,14 @@ export function useGroupWebRTC(roomId: string) {
 
         init();
 
+        const consumers = consumersRef.current;
+
         return () => {
             cleanedUpRef.current = true;
-            for (const { consumer } of consumersRef.current.values()) consumer.close();
-            consumersRef.current.clear();
+            for (const { consumer } of consumers.values()) consumer.close();
+            consumers.clear();
+            cameraProducerRef.current?.close();
+            cameraProducerRef.current = null;
             sendTransportRef.current?.close();
             recvTransportRef.current?.close();
             if (socket && socket.readyState <= WebSocket.OPEN) socket.close(1000, "cleanup");
@@ -513,6 +514,24 @@ export function useGroupWebRTC(roomId: string) {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, send]);
+
+    // ── Apply Virtual Background Track Changes ──
+    useEffect(() => {
+        if (!processedTrack || !localStreamRef.current) return;
+
+        processedTrack.contentHint = "motion";
+        const stream = localStreamRef.current;
+        const currentVideoTrack = stream.getVideoTracks()[0];
+
+        if (currentVideoTrack && currentVideoTrack !== processedTrack) {
+            stream.removeTrack(currentVideoTrack);
+            stream.addTrack(processedTrack);
+            setLocalStream(new MediaStream(stream.getTracks()));
+        }
+
+        cameraProducerRef.current?.replaceTrack({ track: processedTrack })
+            .catch((error) => console.error("[GROUP] replace camera track failed:", error));
+    }, [processedTrack]);
 
     // ── Controls ──
     // Refs to avoid stale closures in toggle functions
@@ -575,8 +594,14 @@ export function useGroupWebRTC(roomId: string) {
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
                 });
                 const track = stream.getVideoTracks()[0];
+                track.contentHint = "detail";
 
-                const producer = await sendTransport.produce({ track, appData: { screen: true } });
+                const producer = await sendTransport.produce({
+                    track,
+                    encodings: GROUP_SCREEN_ENCODINGS,
+                    codecOptions: { videoGoogleStartBitrate: 2_500 },
+                    appData: { screen: true },
+                });
                 screenProducerRef.current = producer;
                 setIsScreenSharing(true);
 

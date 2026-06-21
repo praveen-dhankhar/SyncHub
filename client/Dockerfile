@@ -15,7 +15,9 @@ COPY . .
 
 # Build-time env vars (will be baked into the client bundle)
 ARG NEXT_PUBLIC_API_URL=http://localhost:5001
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:5001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 RUN npm run build
 
