@@ -40,6 +40,15 @@ export type Peer = {
 export class RoomService {
   private rooms = new Map<string, Peer[]>();
 
+  // ── Peers whose socket was closed by a reconnect, not a real disconnect ──
+  // When the same user opens a new connection, removeUserFromRoom() closes
+  // their old socket. That still fires the WebSocket 'close' event on the
+  // OLD connection, which would otherwise run full disconnect cleanup
+  // (duplicate peer-left broadcast + marking the still-active DB
+  // participant as leftAt). This set lets the disconnect handler tell the
+  // two cases apart. Entries are single-use: consumeReplaced() removes them.
+  private replacedPeerIds = new Set<string>();
+
   // ── Add a peer to a room ──
   // If the same peerId reconnects (e.g. browser refresh),
   // we replace the socket instead of creating a duplicate.
@@ -93,15 +102,24 @@ export class RoomService {
       this.rooms.set(roomId, updated);
     }
 
-    // Close old sockets SILENTLY — send a close frame but DON'T let the 
-    // disconnect handler run (the handler checks ctx.roomId which is still set,
-    // but since we already removed the peer from the room list, removePeer 
-    // will be a no-op)
+    // Close old sockets SILENTLY — send a close frame but DON'T let the
+    // disconnect handler run its full cleanup (the handler checks ctx.roomId
+    // which is still set, but since we already removed the peer from the
+    // room list, removePeer will be a no-op). Mark each peerId as
+    // "replaced" first so the disconnect handler also skips the DB write
+    // and duplicate broadcast — see replacedPeerIds above.
     for (const peer of oldPeers) {
+      this.replacedPeerIds.add(peer.peerId);
       try { peer.socket.close(1000, "replaced by new connection"); } catch { }
     }
 
     return updated;
+  }
+
+  // ── Check (and clear) whether a peerId's socket was closed by a reconnect ──
+  // Single-use: the disconnect handler calls this once per close event.
+  consumeReplaced(peerId: string): boolean {
+    return this.replacedPeerIds.delete(peerId);
   }
 
   // ── Get all connected peers in a room ──

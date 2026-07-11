@@ -55,12 +55,11 @@ export function registerWebRtcHandlers(router: {
         ctx.ws.send(JSON.stringify({ type: "error", message: "meeting has ended" }));
         return;
       }
-      if (roomService.isFull(roomId, room.maxParticipants)) {
-        console.log(`[JOIN] ERROR: room full`);
-        return ctx.ws.send(JSON.stringify({ type: "error", message: "room full" }));
-      }
 
-      // Handle re-connections
+      // Handle re-connections BEFORE the capacity check. If this user is
+      // already in the room (browser refresh, flaky reconnect), free their
+      // old slot first — otherwise a room sitting exactly at capacity would
+      // wrongly reject the user trying to reconnect to their own seat.
       if (roomService.isUserInRoom(roomId, ctx.userId)) {
         console.log(`[JOIN] User already in room, removing old connection`);
 
@@ -99,6 +98,17 @@ export function registerWebRtcHandlers(router: {
           return;
         }
         role = participant.role as PeerRole;
+      }
+
+      // Capacity check happens LAST, immediately before addPeer, with no
+      // await in between — that makes the check-then-add atomic with
+      // respect to other concurrent "join" messages (Node never interleaves
+      // synchronous code between two callback invocations), closing the
+      // TOCTOU window that existed when this check ran before the role
+      // lookup's await.
+      if (roomService.isFull(roomId, room.maxParticipants)) {
+        console.log(`[JOIN] ERROR: room full`);
+        return ctx.ws.send(JSON.stringify({ type: "error", message: "room full" }));
       }
 
       // Register peer in-memory
@@ -422,11 +432,20 @@ export function registerWebRtcHandlers(router: {
     console.log(`[DISCONNECT] peerId=${ctx.peerId} userId=${ctx.userId} roomId=${ctx.roomId}`);
     if (!ctx.roomId) return;
 
-    // Clean up SFU resources
+    // Clean up SFU resources (safe no-op if a reconnect already closed them)
     const closedProducerIds = sfuService.closePeer(ctx.peerId);
 
-    // Remove from in-memory room
+    // Remove from in-memory room (safe no-op if a reconnect already removed this peer)
     const remaining = roomService.removePeer(ctx.roomId, ctx.peerId);
+
+    // If this socket was closed because the same user reconnected on a new
+    // connection, the join handler already broadcast peer-left and owns the
+    // DB state for this user. Stop here — otherwise we'd send a duplicate
+    // peer-left and (worse) mark the still-active participant as having
+    // left the room.
+    if (roomService.consumeReplaced(ctx.peerId)) {
+      return;
+    }
 
     // Notify remaining peers
     for (const p of remaining) {

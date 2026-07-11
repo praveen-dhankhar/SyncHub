@@ -76,28 +76,57 @@ export class SFUService {
     private worker: mediasoup.types.Worker | null = null;
     private routers: Map<string, mediasoup.types.Router> = new Map();
     private peerTransports: Map<string, PeerTransports> = new Map();
+    // In-flight router creations, keyed by roomId. Lets concurrent
+    // getOrCreateRouter() calls for the same room await the SAME router
+    // instead of each racing to create (and leak) their own.
+    private routerCreations: Map<string, Promise<mediasoup.types.Router>> = new Map();
 
     async init(): Promise<void> {
         this.worker = await mediasoup.createWorker(WORKER_SETTINGS);
         console.log("mediasoup: Worker created (pid:", this.worker.pid, ")");
 
         this.worker.on("died", () => {
-            console.error("mediasoup: Worker died! Restarting...");
+            console.error("mediasoup: Worker died! Clearing stale router/transport state and restarting...");
+            // Every router/transport/producer/consumer reference below belonged
+            // to the dead worker process — keeping them in the maps would make
+            // getOrCreateRouter() / findTransport() silently hand out closed
+            // objects forever instead of recreating them against the new worker.
+            this.routers.clear();
+            this.routerCreations.clear();
+            this.peerTransports.clear();
+            this.worker = null;
             setTimeout(() => this.init(), 2000);
         });
     }
 
+    // True once a live mediasoup worker process is running. Used by the
+    // /health endpoint so orchestrators (Render/Docker) notice a worker
+    // that died and hasn't come back yet, instead of reporting "ok" forever.
+    isHealthy(): boolean {
+        return this.worker !== null && !this.worker.closed;
+    }
+
     async getOrCreateRouter(roomId: string): Promise<mediasoup.types.Router> {
-        if (this.routers.has(roomId)) {
-            return this.routers.get(roomId)!;
-        }
+        const existing = this.routers.get(roomId);
+        if (existing) return existing;
+
+        const inFlight = this.routerCreations.get(roomId);
+        if (inFlight) return inFlight;
 
         if (!this.worker) throw new Error("mediasoup worker not initialized");
 
-        const router = await this.worker.createRouter({ mediaCodecs: MEDIA_CODECS });
-        this.routers.set(roomId, router);
-        console.log(`mediasoup: Router created for room ${roomId}`);
-        return router;
+        const creation = this.worker.createRouter({ mediaCodecs: MEDIA_CODECS })
+            .then((router) => {
+                this.routers.set(roomId, router);
+                console.log(`mediasoup: Router created for room ${roomId}`);
+                return router;
+            })
+            .finally(() => {
+                this.routerCreations.delete(roomId);
+            });
+
+        this.routerCreations.set(roomId, creation);
+        return creation;
     }
 
     getRouterCapabilities(roomId: string): mediasoup.types.RtpCapabilities | null {
@@ -113,16 +142,17 @@ export class SFUService {
         const router = this.routers.get(roomId);
         if (!router) throw new Error("Router not found for room " + roomId);
 
+        // Reserve (or fetch) this peer's transport-state entry BEFORE the
+        // await below. If "send" and "recv" transports are ever created
+        // concurrently for the same peer, whichever call runs first creates
+        // the entry synchronously — Node never interleaves two callbacks'
+        // synchronous code, so the second call is guaranteed to see it via
+        // getOrCreatePeerEntry() instead of racing to create its own and
+        // silently dropping the first transport reference.
+        const peer = this.getOrCreatePeerEntry(peerId);
+
         const transport = await router.createWebRtcTransport(createTransportOptions());
 
-        if (!this.peerTransports.has(peerId)) {
-            this.peerTransports.set(peerId, {
-                producers: new Map(),
-                consumers: new Map(),
-            });
-        }
-
-        const peer = this.peerTransports.get(peerId)!;
         if (direction === "send") {
             peer.sendTransport = transport;
         } else {
@@ -135,6 +165,15 @@ export class SFUService {
             iceCandidates: transport.iceCandidates,
             dtlsParameters: transport.dtlsParameters,
         };
+    }
+
+    private getOrCreatePeerEntry(peerId: string): PeerTransports {
+        let peer = this.peerTransports.get(peerId);
+        if (!peer) {
+            peer = { producers: new Map(), consumers: new Map() };
+            this.peerTransports.set(peerId, peer);
+        }
+        return peer;
     }
 
     async connectTransport(

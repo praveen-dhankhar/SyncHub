@@ -6,6 +6,7 @@ import { replaceRoomEmbeddings } from "../ai/embeddings.js";
 import { generateMeetingSummaryData, normalizeSummary, type MeetingSummaryData } from "../ai/summary.js";
 import { replaceActionItems } from "../services/action-items.service.js";
 import { broadcastActionItemsUpdate } from "../realtime/services/live-room.service.js";
+import { joinRoomAtomically } from "../services/room-access.service.js";
 
 // ─── Helper ─────────────────────────────────────────────
 // Generates a short, human-friendly invite code.
@@ -205,55 +206,20 @@ export const joinRoom = async (req: Request, res: Response) => {
   const roomId = req.params.id;
 
   try {
-    const room = await prisma.room.findUnique({
-      where: { id: roomId },
-      include: {
-        _count: {
-          select: {
-            // Only count ACTIVE participants (not ones who already left)
-            participants: { where: { leftAt: null } },
-          },
-        },
-      },
-    });
+    const result = await joinRoomAtomically(roomId, userId);
 
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
+    switch (result.status) {
+      case "not_found":
+        return res.status(404).json({ message: "Room not found" });
+      case "ended":
+        return res.status(400).json({ message: "This meeting has ended" });
+      case "full":
+        return res.status(400).json({ message: "Room is full" });
+      case "already_joined":
+        return res.json({ message: "Already in this room", participant: result.participant });
+      case "joined":
+        return res.status(201).json(result.participant);
     }
-
-    if (!room.isActive) {
-      return res.status(400).json({ message: "This meeting has ended" });
-    }
-
-    // Check if user is already a participant FIRST —
-    // they should always be allowed to re-join regardless of room capacity
-    const existingParticipant = await prisma.roomParticipant.findFirst({
-      where: { roomId, userId, leftAt: null },
-    });
-
-    if (existingParticipant) {
-      return res.json({ message: "Already in this room", participant: existingParticipant });
-    }
-
-    // Only check capacity for genuinely NEW participants
-    if (room._count.participants >= room.maxParticipants) {
-      return res.status(400).json({ message: "Room is full" });
-    }
-
-    const participant = await prisma.roomParticipant.create({
-      data: {
-        roomId,
-        userId,
-        role: "PARTICIPANT",
-      },
-      include: {
-        user: {
-          select: { id: true, username: true, avatar: true },
-        },
-      },
-    });
-
-    return res.status(201).json(participant);
   } catch (err) {
     console.error("Failed to join room:", err);
     return res.status(500).json({ error: "Failed to join room" });
@@ -272,53 +238,31 @@ export const joinByInviteCode = async (req: Request, res: Response) => {
   const { inviteCode } = req.params;
 
   try {
+    // Invite codes are immutable once assigned, so this lookup isn't racy —
+    // it just resolves inviteCode -> roomId before the atomic join below.
     const room = await prisma.room.findUnique({
       where: { inviteCode },
-      include: {
-        _count: {
-          select: {
-            participants: { where: { leftAt: null } },
-          },
-        },
-      },
+      select: { id: true, type: true },
     });
 
     if (!room) {
       return res.status(404).json({ message: "Invalid invite code" });
     }
 
-    if (!room.isActive) {
-      return res.status(400).json({ message: "This meeting has ended" });
+    const result = await joinRoomAtomically(room.id, userId);
+
+    switch (result.status) {
+      case "not_found":
+        return res.status(404).json({ message: "Invalid invite code" });
+      case "ended":
+        return res.status(400).json({ message: "This meeting has ended" });
+      case "full":
+        return res.status(400).json({ message: "Room is full" });
+      case "already_joined":
+        return res.json({ message: "Already in this room", roomId: room.id, id: room.id, type: room.type, participant: result.participant });
+      case "joined":
+        return res.status(201).json({ roomId: room.id, id: room.id, type: room.type, participant: result.participant });
     }
-
-    // Check if user is already a participant FIRST
-    const existingParticipant = await prisma.roomParticipant.findFirst({
-      where: { roomId: room.id, userId, leftAt: null },
-    });
-
-    if (existingParticipant) {
-      return res.json({ message: "Already in this room", roomId: room.id, id: room.id, type: room.type, participant: existingParticipant });
-    }
-
-    // Only check capacity for genuinely NEW participants
-    if (room._count.participants >= room.maxParticipants) {
-      return res.status(400).json({ message: "Room is full" });
-    }
-
-    const participant = await prisma.roomParticipant.create({
-      data: {
-        roomId: room.id,
-        userId,
-        role: "PARTICIPANT",
-      },
-      include: {
-        user: {
-          select: { id: true, username: true, avatar: true },
-        },
-      },
-    });
-
-    return res.status(201).json({ roomId: room.id, id: room.id, type: room.type, participant });
   } catch (err) {
     console.error("Failed to join by invite:", err);
     return res.status(500).json({ error: "Failed to join room" });
@@ -401,11 +345,16 @@ export const endRoom = async (req: Request, res: Response) => {
     const finalTranscript = transcript || room.transcript || "";
     const finalSummary = summaryData?.summary || room.summary || "";
 
-    // Use a transaction to ensure both updates happen atomically
-    await prisma.$transaction([
-      // Mark the room as ended
-      prisma.room.update({
-        where: { id: roomId },
+    // Use a transaction to ensure both updates happen atomically, and guard
+    // against double-submit (double-click, client retry after a slow AI
+    // summary call): `updateMany` with `isActive: true` only matches for
+    // whichever request gets there first, so only that request runs the
+    // expensive finalization pipeline (Gemini action items + embeddings)
+    // below. A second concurrent call sees endedCount === 0 and just
+    // returns the already-finalized state instead of redoing the work.
+    const [{ count: endedCount }] = await prisma.$transaction([
+      prisma.room.updateMany({
+        where: { id: roomId, isActive: true },
         data: {
           isActive: false,
           endedAt: now,
@@ -422,7 +371,9 @@ export const endRoom = async (req: Request, res: Response) => {
       }),
     ]);
 
-    await runMeetingMindFinalization(roomId, finalTranscript, finalSummary);
+    if (endedCount > 0) {
+      await runMeetingMindFinalization(roomId, finalTranscript, finalSummary);
+    }
 
     const actionItems = await prisma.actionItem.findMany({
       where: { roomId },
@@ -433,7 +384,11 @@ export const endRoom = async (req: Request, res: Response) => {
       select: { embeddingStatus: true },
     });
 
-    return res.json({ message: "Meeting ended", actionItems, embeddingStatus: updatedRoom?.embeddingStatus ?? room.embeddingStatus });
+    return res.json({
+      message: endedCount > 0 ? "Meeting ended" : "Meeting already ended",
+      actionItems,
+      embeddingStatus: updatedRoom?.embeddingStatus ?? room.embeddingStatus,
+    });
   } catch (err) {
     console.error("Failed to end room:", err);
     return res.status(500).json({ error: "Failed to end meeting" });

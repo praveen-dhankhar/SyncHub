@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
     createRoom,
     getRoom,
@@ -11,6 +12,18 @@ import {
     getRoomTranscript,
 } from "../controllers/room.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
+
+// Room creation limiter: 15 rooms per minute (prevent spam).
+// Scoped to POST /rooms only — previously mounted on all of /rooms/*,
+// which meant normal dashboard/read traffic (list rooms, stats, transcript,
+// join, leave) shared the same 15/min budget as room creation.
+const roomCreateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many rooms created. Please wait." },
+});
 
 // ─── Room Routes ────────────────────────────────────────
 //
@@ -27,7 +40,7 @@ import { protect } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-router.post("/", protect, createRoom);
+router.post("/", roomCreateLimiter, protect, createRoom);
 router.get("/", protect, getUserRooms);
 router.get("/stats", protect, getUserStats);
 router.get("/:id/transcript", protect, getRoomTranscript);
