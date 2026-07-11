@@ -5,47 +5,10 @@ import {
   refresh,
   logout,
 } from "../controllers/auth.controller.js";
+import { requestOtp, verifyOtp } from "../controllers/otp.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
-import passport from "passport";
-import { oauthSuccess, exchangeCode } from "../controllers/oauth.controllers.js";
 
 const router = Router();
-
-// ─── OAuth Error Redirect Helper ─────────────────────────
-// Redirects to client login page with error parameter instead of
-// returning raw JSON to the browser.
-function getOAuthErrorRedirect(errorCode: string) {
-  const clientUrl = process.env.CLIENT_URL || "http://localhost:3000";
-  return `${clientUrl.replace(/\/+$/, "")}/auth/login?error=${encodeURIComponent(errorCode)}`;
-}
-
-// ─── OAuth Callback Handler ──────────────────────────────
-// Uses Passport's custom callback pattern for session-less OAuth.
-function handleOAuthCallback(strategy: "google" | "discord") {
-  return (req: any, res: any, next: any) => {
-    console.log(`[OAuth:${strategy}] Callback hit — starting passport.authenticate`);
-    passport.authenticate(strategy, { session: false }, (err: unknown, user: unknown, info: any) => {
-      if (err) {
-        console.error(`[OAuth:${strategy}] passport.authenticate error:`, err);
-        return res.redirect(getOAuthErrorRedirect("oauth_callback_failed"));
-      }
-
-      if (!user) {
-        const message = info?.message || `${strategy} authentication failed`;
-        console.error(`[OAuth:${strategy}] passport.authenticate returned NO user — ${message}`);
-        console.error(`[OAuth:${strategy}] info object:`, JSON.stringify(info));
-        return res.redirect(getOAuthErrorRedirect("oauth_denied"));
-      }
-
-      console.log(`[OAuth:${strategy}] passport.authenticate SUCCESS — user:`, (user as any)?.id);
-      req.user = user;
-      return oauthSuccess(req, res).catch((e) => {
-        console.error(`[OAuth:${strategy}] oauthSuccess EXCEPTION:`, e);
-        return res.redirect(getOAuthErrorRedirect("oauth_failed"));
-      });
-    })(req, res, next);
-  };
-}
 
 // ─── Standard Auth Routes ────────────────────────────────
 router.post("/register", register);
@@ -53,42 +16,12 @@ router.post("/login", login);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 
-// ─── Google OAuth ────────────────────────────────────────
-router.get("/google", (req, res, next) => {
-  passport.authenticate("google", {
-    scope: ["email", "profile"],
-    session: false,
-  })(req, res, (err: unknown) => {
-    if (err) {
-      console.error("[OAuth] Google init failed:", err);
-      return res.redirect(getOAuthErrorRedirect("oauth_init_failed"));
-    }
-    next();
-  });
-});
-
-router.get("/google/callback", handleOAuthCallback("google"));
-
-// ─── Discord OAuth ───────────────────────────────────────
-router.get("/discord", (req, res, next) => {
-  passport.authenticate("discord", {
-    session: false,
-  })(req, res, (err: unknown) => {
-    if (err) {
-      console.error("[OAuth] Discord init failed:", err);
-      return res.redirect(getOAuthErrorRedirect("oauth_init_failed"));
-    }
-    next();
-  });
-});
-
-router.get("/discord/callback", handleOAuthCallback("discord"));
-
-// ─── Auth Code Exchange (secure OAuth token delivery) ────
-// Replaces the old `/set-tokens` endpoint.
-// Client sends the one-time code from the OAuth redirect,
-// receives httpOnly cookie tokens in response.
-router.post("/exchange-code", exchangeCode);
+// ─── Email OTP Verification ──────────────────────────────
+// Passwordless login: request a 6-digit code emailed to the user,
+// then verify it to receive httpOnly cookie tokens. Auto-creates
+// the account on first verification for a given email.
+router.post("/otp/request", requestOtp);
+router.post("/otp/verify", verifyOtp);
 
 // ─── Protected Routes ────────────────────────────────────
 router.get("/me", protect, async (req, res) => {

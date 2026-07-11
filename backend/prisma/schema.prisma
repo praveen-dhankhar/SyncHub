@@ -93,6 +93,19 @@ model RefreshToken {
   createdAt DateTime @default(now())
 }
 
+// One-time codes emailed to users for passwordless verification.
+// codeHash is sha256(code) — the plaintext code is never stored.
+model EmailOtp {
+  id        String   @id @default(uuid())
+  email     String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
 model Room {
   id              String    @id @default(uuid())
   createdAt       DateTime  @default(now())

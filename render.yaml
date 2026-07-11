@@ -25,17 +25,17 @@ services:
         sync: false
       - key: CLIENT_URLS
         sync: false
-      - key: GOOGLE_CLIENT_ID
+      - key: SMTP_HOST
         sync: false
-      - key: GOOGLE_CLIENT_SECRET
+      - key: SMTP_PORT
         sync: false
-      - key: GOOGLE_CALLBACK_URL
+      - key: SMTP_SECURE
         sync: false
-      - key: DISCORD_CLIENT_ID
+      - key: SMTP_USER
         sync: false
-      - key: DISCORD_CLIENT_SECRET
+      - key: SMTP_PASS
         sync: false
-      - key: DISCORD_CALLBACK_URL
+      - key: SMTP_FROM
         sync: false
       - key: GEMINI_API_KEY
         sync: false

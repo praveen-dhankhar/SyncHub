@@ -1,6 +1,6 @@
 "use client";
 
-import React, {
+import {
   ComponentType,
   FormEvent,
   ChangeEvent,
@@ -8,7 +8,7 @@ import React, {
   useEffect,
   Suspense,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { DottedSurface } from "@/components/ui/dotted-surface";
@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   Lock,
   Mail,
-  MessageCircle,
   Radar,
   User,
 } from "lucide-react";
@@ -79,11 +78,17 @@ const reducedVariants = {
 function MinimalAuthContent({ type }: { type: "login" | "register" }) {
   const router = useRouter();
   const reduceMotion = useReducedMotion();
-  const searchParams = useSearchParams();
 
   const [form, setForm] = useState({ email: "", username: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [otpStep, setOtpStep] = useState<"idle" | "request" | "sent">("idle");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const v = reduceMotion ? reducedVariants : fadeSlideUp;
   const container = reduceMotion
@@ -91,18 +96,10 @@ function MinimalAuthContent({ type }: { type: "login" | "register" }) {
     : staggerContainer;
 
   useEffect(() => {
-    const oauthError = searchParams.get("error");
-    if (oauthError) {
-      const messages: Record<string, string> = {
-        oauth_denied: "OAuth access was denied. Please try again.",
-        oauth_init_failed: "Could not connect to the OAuth provider.",
-        oauth_callback_failed: "OAuth callback failed. Please try again.",
-        oauth_failed: "Authentication failed. Please try again.",
-      };
-      setError(messages[oauthError] || "An unexpected error occurred.");
-      window.history.replaceState(null, "", window.location.pathname);
-    }
-  }, [searchParams]);
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const onChange = (e: ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -125,12 +122,44 @@ function MinimalAuthContent({ type }: { type: "login" | "register" }) {
     }
   }
 
-  const loginWithGoogle = () => {
-    window.location.href = "/api/auth/google";
-  };
-  const loginWithDiscord = () => {
-    window.location.href = "/api/auth/discord";
-  };
+  async function requestOtp() {
+    setOtpError("");
+    setOtpLoading(true);
+    try {
+      await apiRequest("/auth/otp/request", { email: otpEmail });
+      setOtpStep("sent");
+      setResendCooldown(60);
+    } catch (err: unknown) {
+      setOtpError(err instanceof Error ? err.message : "Failed to send code");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  function onRequestOtpSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void requestOtp();
+  }
+
+  async function verifyOtp(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setOtpError("");
+    setOtpLoading(true);
+    try {
+      await apiRequest("/auth/otp/verify", { email: otpEmail, code: otpCode });
+      router.push("/");
+    } catch (err: unknown) {
+      setOtpError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  function resetOtp() {
+    setOtpStep("idle");
+    setOtpCode("");
+    setOtpError("");
+  }
 
   return (
     <div className="relative md:h-screen md:overflow-hidden w-full">
@@ -198,28 +227,101 @@ function MinimalAuthContent({ type }: { type: "login" | "register" }) {
             </motion.div>
           )}
 
-          {/* OAuth buttons */}
+          {/* Email OTP */}
           <motion.div variants={v} className="space-y-2.5">
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              className="w-full justify-center"
-              onClick={loginWithGoogle}
-            >
-              <GoogleIcon className="me-2 size-4" />
-              Continue with Google
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              className="w-full justify-center"
-              onClick={loginWithDiscord}
-            >
-              <MessageCircle strokeWidth={2.5} className="me-2 size-4" />
-              Continue with Discord
-            </Button>
+            {otpStep === "idle" && (
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                className="w-full justify-center"
+                onClick={() => setOtpStep("request")}
+              >
+                <Mail className="me-2 size-4" />
+                Continue with email code
+              </Button>
+            )}
+
+            {otpStep === "request" && (
+              <form onSubmit={onRequestOtpSubmit} className="space-y-2.5">
+                <MinimalInput
+                  label="Email"
+                  icon={Mail}
+                  name="otpEmail"
+                  type="email"
+                  placeholder="you@company.com"
+                  value={otpEmail}
+                  onChange={(e) => setOtpEmail(e.target.value)}
+                />
+                {otpError && (
+                  <p className="text-xs font-medium text-destructive">{otpError}</p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={otpLoading}
+                    className="flex-1 justify-center"
+                  >
+                    {otpLoading ? "Sending…" : "Send code"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="ghost"
+                    onClick={resetOtp}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {otpStep === "sent" && (
+              <form onSubmit={verifyOtp} className="space-y-2.5">
+                <p className="text-xs text-muted-foreground">
+                  Code sent to <span className="font-medium text-foreground">{otpEmail}</span>
+                </p>
+                <MinimalInput
+                  label="6-digit code"
+                  icon={Lock}
+                  name="otpCode"
+                  placeholder="123456"
+                  value={otpCode}
+                  onChange={(e) =>
+                    setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                />
+                {otpError && (
+                  <p className="text-xs font-medium text-destructive">{otpError}</p>
+                )}
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={otpLoading || otpCode.length !== 6}
+                  className="w-full justify-center"
+                >
+                  {otpLoading ? "Verifying…" : "Verify & continue"}
+                </Button>
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    disabled={resendCooldown > 0 || otpLoading}
+                    onClick={() => void requestOtp()}
+                    className="font-medium text-primary transition-colors hover:text-primary/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetOtp}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              </form>
+            )}
           </motion.div>
 
           {/* Divider */}
@@ -229,7 +331,7 @@ function MinimalAuthContent({ type }: { type: "login" | "register" }) {
           >
             <div className="h-px flex-1 bg-border" />
             <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              or continue with email
+              or use a password
             </span>
             <div className="h-px flex-1 bg-border" />
           </motion.div>
@@ -413,18 +515,3 @@ function MinimalInput({
     </div>
   );
 }
-
-/* ───────────────────────────────────────────────────────── */
-/* Inline Google SVG icon                                    */
-/* ───────────────────────────────────────────────────────── */
-
-const GoogleIcon = (props: React.ComponentProps<"svg">) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    {...props}
-  >
-    <path d="M12.479,14.265v-3.279h11.049c0.108,0.571,0.164,1.247,0.164,1.979c0,2.46-0.672,5.502-2.84,7.669C18.744,22.829,16.051,24,12.483,24C5.869,24,0.308,18.613,0.308,12S5.869,0,12.483,0c3.659,0,6.265,1.436,8.223,3.307L18.392,5.62c-1.404-1.317-3.307-2.341-5.913-2.341C7.65,3.279,3.873,7.171,3.873,12s3.777,8.721,8.606,8.721c3.132,0,4.916-1.258,6.059-2.401c0.927-0.927,1.537-2.251,1.777-4.059L12.479,14.265z" />
-  </svg>
-);

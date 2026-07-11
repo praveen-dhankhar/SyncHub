@@ -5,11 +5,12 @@ import roomRoutes from "./routes/room.routes.js"
 import aiRoutes from "./routes/ai.routes.js"
 import cookieParser from "cookie-parser"
 import cors from "cors";
-import passport from "./lib/passport.js";
 import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import { prisma } from "./lib/prisma.js";
+import { sfuService } from "./realtime/services/sfu.service.js";
 
 const app = express();
 
@@ -97,9 +98,6 @@ app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// ─── Passport ────────────────────────────────────────────
-app.use(passport.initialize());
-
 // ─── Rate Limiters ───────────────────────────────────────
 
 // Global limiter: 200 requests per minute per IP
@@ -129,15 +127,6 @@ const aiLimiter = rateLimit({
   message: { message: "AI rate limit exceeded, please wait a moment." },
 });
 
-// Room creation limiter: 15 rooms per minute (prevent spam)
-const roomCreateLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many rooms created. Please wait." },
-});
-
 // Apply global limiter to all routes
 app.use(globalLimiter);
 
@@ -145,10 +134,11 @@ app.use(globalLimiter);
 // Auth routes with strict rate limit on login/register
 app.use("/auth/login", authLimiter);
 app.use("/auth/register", authLimiter);
+app.use("/auth/otp", authLimiter);
 app.use("/auth", authRoutes);
 
-// Room routes with creation limiter
-app.use("/rooms", roomCreateLimiter);
+// Room routes (creation-only rate limit is applied inside room.routes.ts,
+// scoped to POST /rooms — not the whole /rooms/* surface)
 app.use("/rooms", roomRoutes);
 
 // AI routes with AI-specific limiter
@@ -156,9 +146,25 @@ app.use("/ai", aiLimiter);
 app.use("/ai", aiRoutes);
 
 // ─── Health Check ────────────────────────────────────────
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
+// Checks DB connectivity and mediasoup worker liveness, not just process
+// uptime — otherwise a dead mediasoup worker (see SFUService worker "died"
+// handler) or a lost DB connection would report "ok" forever, and
+// Render/Docker would never restart a container stuck in that state.
+app.get("/health", async (_req, res) => {
+  const checks = { database: false, sfu: sfuService.isHealthy() };
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = true;
+  } catch (err) {
+    console.error("[Health] Database check failed:", err instanceof Error ? err.message : err);
+  }
+
+  const healthy = checks.database && checks.sfu;
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    checks,
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
   });
