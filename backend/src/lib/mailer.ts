@@ -12,10 +12,14 @@ let transporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (!transporter) {
+    const secure = process.env.SMTP_SECURE === "true";
     transporter = nodemailer.createTransport({
       host: requireEnv("SMTP_HOST"),
       port: Number(process.env.SMTP_PORT ?? 587),
-      secure: process.env.SMTP_SECURE === "true",
+      secure,
+      // On the non-secure port (587), require the STARTTLS upgrade rather
+      // than silently falling back to plaintext if the server doesn't offer it.
+      requireTLS: !secure,
       auth: {
         user: requireEnv("SMTP_USER"),
         pass: requireEnv("SMTP_PASS"),
